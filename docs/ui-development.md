@@ -1,6 +1,6 @@
 # 表示担当向け：phase3 までの開発の入口
 
-共通型、Gateway、接続用コントローラー、15シナリオのモックを使用する。B-09 で A の PochiApp と実センサー・保存・通信・Tauri ウィンドウ操作を接続した。[現在の表示構成](pochi-typescript.md) と [統合・デモの確認記録](backend-integration.md) を参照。以下のひな型の説明は先行開発時の参考として残す。
+共通型、Gateway、接続用コントローラー、16シナリオのモックを使用する。B-09 で A の PochiApp と実センサー・保存・通信・Tauri ウィンドウ操作を接続した。[現在の表示構成](pochi-typescript.md) と [統合・デモの確認記録](backend-integration.md) を参照。以下のひな型の説明は先行開発時の参考として残す。
 
 ## 1. 起動と確認
 

@@ -12,7 +12,7 @@ export class AppController {
     connection: "connecting", snapshot: null,
     pet: { pose: "sit", animation: "launch", playbackToken: "launch", greeting: null, statusText: "接続中" },
     motion: initialMotion(),
-    bubble: null, report: { phase: "closed" }, reportList: [], reportListLoading: false,
+    bubble: null, advanceNotice: null, report: { phase: "closed" }, reportList: [], reportListLoading: false,
     queuedReportCount: 0, pending: null, error: null,
   };
   private listeners = new Set<() => void>();
@@ -25,6 +25,7 @@ export class AppController {
   private awaitingReturn = false;
   private closing = false;
   private mutation = 0;
+  private dismissedAdvanceNotice: string | null = null;
 
   constructor(private readonly gateway: AppGateway) {}
   getState = (): AppViewModel => this.state;
@@ -41,7 +42,7 @@ export class AppController {
     this.retiredRuntimes = new Set();
     const buffered: AppSnapshot[] = [];
     let initializing = true;
-    this.publish({ connection: "connecting", pending: null, error: null });
+    this.publish({ connection: "connecting", pending: null, error: null, advanceNotice: null });
     try {
       const initial = await this.gateway.connect(snapshot => {
         if (epoch !== this.epoch) return;
@@ -49,7 +50,7 @@ export class AppController {
         else this.accept(snapshot);
       }, error => {
         if (epoch !== this.epoch) return;
-        if (error) this.publish({ connection: "error", error });
+        if (error) this.publish({ connection: "error", error, advanceNotice: null });
         else if (!initializing && this.state.connection === "error") this.publish({ connection: "connected", error: null });
       });
       if (epoch !== this.epoch) return;
@@ -67,11 +68,12 @@ export class AppController {
       this.publish({ connection: "connected" });
       await this.refreshReports();
     } catch (error) {
-      if (epoch === this.epoch) this.publish({ connection: "error", error: error instanceof GatewayConnectionError ? error.detail : connectionError() });
+      if (epoch === this.epoch) this.publish({ connection: "error", advanceNotice: null, error: error instanceof GatewayConnectionError ? error.detail : connectionError() });
     }
   }
   async dispose(): Promise<void> {
     this.epoch++; this.reportRead++; this.listRead++;
+    this.publish({ advanceNotice: null });
     await this.gateway.dispose();
   }
   private resetRuntime(snapshot: AppSnapshot): void {
@@ -80,7 +82,7 @@ export class AppController {
     this.seenCompletion = snapshot.completionSeq;
     this.reportQueue = [];
     this.reportRead++; this.listRead++;
-    this.publish({ snapshot: null, pending: null, motion: { ...initialMotion(), token: this.state.motion.token + 1 },
+    this.publish({ snapshot: null, pending: null, advanceNotice: null, motion: { ...initialMotion(), token: this.state.motion.token + 1 },
       report: { phase: "closed" }, reportList: [], reportListLoading: false, queuedReportCount: 0 });
   }
   private accept(snapshot: AppSnapshot, initial = false): void {
@@ -98,6 +100,12 @@ export class AppController {
     const resting = (snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present")
       && this.state.report.phase === "closed";
     const reminder = snapshot.reminder;
+    const notice = snapshot.advanceNotice;
+    const noticeKey = this.advanceNoticeKey(snapshot);
+    const showNotice = notice && noticeKey !== this.dismissedAdvanceNotice
+      && snapshot.runtime.phase === "running" && snapshot.presence.value === "present"
+      && snapshot.session?.endedAt === null && snapshot.session.id === notice.sessionId && !reminder;
+    const noticeUnit = snapshot.runtime.profile === "demo" ? 1_000 : 60_000;
     const currentReportId = this.currentReportId();
     const completions = snapshot.jobs.filter(job => job.completionSeq !== null && job.completionSeq > this.seenCompletion)
       .sort((a, b) => a.completionSeq! - b.completionSeq!);
@@ -111,6 +119,8 @@ export class AppController {
     this.publish({
       snapshot,
       motion,
+      advanceNotice: showNotice ? { sessionId: notice.sessionId,
+        text: `あと${Math.ceil(notice.remainingMs / noticeUnit)}${snapshot.runtime.profile === "demo" ? "秒" : "分"}ほどで休憩の目安だよ。区切りのよいところで、ひと息つく準備をしよう。` } : null,
       pet: {
         pose: resting ? "lie" : "sit",
         animation: reminder ? "recordReminder" : returned ? "welcome" : !previous && snapshot.runtime.phase === "stopped" ? "launch" : resting ? "idleRest" : null,
@@ -137,6 +147,9 @@ export class AppController {
   private currentReportId(): Id | null {
     const report = this.state.report;
     return report.phase === "closed" ? null : report.phase === "ready" ? report.report.id : report.reportId;
+  }
+  private advanceNoticeKey(snapshot: AppSnapshot): string {
+    return JSON.stringify([snapshot.runtimeId, snapshot.runtime.trackingId, snapshot.advanceNotice?.sessionId]);
   }
   private pumpReportQueue(): void {
     if (this.state.report.phase !== "closed") return;
@@ -255,6 +268,11 @@ export class AppController {
           motion: moveTo(this.state.motion, "rest") });
     },
     dismissError: () => { this.publish({ error: null }); },
+    dismissAdvanceNotice: () => {
+      if (!this.state.advanceNotice || !this.state.snapshot) return;
+      this.dismissedAdvanceNotice = this.advanceNoticeKey(this.state.snapshot);
+      this.publish({ advanceNotice: null });
+    },
   };
   private async windowOperation(operation: () => Promise<void> | undefined): Promise<void> {
     try { await operation(); }

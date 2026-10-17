@@ -6,6 +6,7 @@ export const MINUTE = 60_000;
 export const scenarios = [
   { id: "stopped", label: "起動・停止中", description: "開始操作・設定・登場演出" },
   { id: "working", label: "作業中", description: "顔あり・連続在席29分" },
+  { id: "advanceNotice", label: "休憩の予告", description: "在席27分・あと3分の控えめな予告。閉じても休憩提案は延期しない" },
   { id: "uncertain", label: "顔が一時的に見えない", description: "通知を隠し、待機表現を確認" },
   { id: "reminder", label: "休憩しない？", description: "Yes／No を押して後続の状態へ" },
   { id: "snoozed", label: "No の延期中", description: "2分後から新しい区切り、10分後に再通知" },
@@ -36,7 +37,7 @@ export function createSnapshot(now = FIXTURE_NOW): AppSnapshot {
       revision: 0, hasApiKey: false,
     },
     presence: { value: "unknown", reason: "sensorUnavailable", faceMissingSince: null, awayDetectedAt: null },
-    session: null, reminder: null, jobs: [], completionSeq: 0, warning: null,
+    session: null, reminder: null, advanceNotice: null, jobs: [], completionSeq: 0, warning: null,
   };
 }
 

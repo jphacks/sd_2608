@@ -32,8 +32,11 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
   const generating = snapshot?.jobs.some(job => job.status === "running" || job.status === "queued");
   const scheduled = snapshot?.jobs.some(job => job.status === "scheduled");
   const reduced = !!settings?.reducedMotion || systemReduced;
+  const showAdvanceNotice = !!state.advanceNotice && (panel === "home" || panel === "quiet")
+    && state.connection === "connected" && !state.error
+    && !state.bubble && !reportOpen && !generating && !scheduled;
   // 消してよいのは作業開始の案内だけ。通知・エラー・完成カードは常に優先する。
-  const attention = state.connection !== "connected" || !!state.error || !!snapshot?.warning || !!state.bubble || reportOpen || generating || scheduled;
+  const attention = state.connection !== "connected" || !!state.error || !!snapshot?.warning || !!state.bubble || reportOpen || generating || scheduled || showAdvanceNotice;
   const hideBubble = panel === "quiet" && !quietMessage && !attention;
   useEffect(() => {
     setConsent(false); setExternalConsent(false);
@@ -61,10 +64,11 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
       if (panel !== "home" && panel !== "quiet") setPanel(running ? "quiet" : "home");
       else if (state.bubble && !busy) void actions.answer("no");
       else if (reportOpen) actions.closeReport();
+      else if (showAdvanceNotice) actions.dismissAdvanceNotice();
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [actions, state.bubble, reportOpen, busy, panel, running]);
+  }, [actions, state.bubble, reportOpen, busy, panel, running, showAdvanceNotice]);
   const begin = (ai: boolean) => {
     if (!snapshot || !consent || (ai && !externalConsent)) return;
     void actions.start({ profile, expectedSettingsRevision: snapshot.settings.revision, reportMode: ai ? "ai" : "local",
@@ -93,6 +97,10 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
         {state.error && <div role="alert" className="alert">{state.error.message}<div className="bs"><button onClick={actions.dismissError}>エラーを閉じる</button>{state.connection === "error" && <button onClick={() => { void actions.reconnect(); }}>再接続</button>}</div></div>}
         {snapshot?.warning && <p role="alert" className="alert">{snapshot.warning.message}</p>}
         {state.pet.greeting && <p role="status" className="m">{state.pet.greeting}</p>}
+        {showAdvanceNotice && <section className="advance-notice" aria-label="休憩の予告">
+          <p className="sm" role="status">{state.advanceNotice!.text}</p>
+          <button aria-label="休憩の予告を閉じる" onClick={actions.dismissAdvanceNotice}>閉じる</button>
+        </section>}
         {state.bubble && <section aria-label="休憩のお知らせ" className="notice" data-emphasis={state.bubble.emphasis}>
           <p className="m">{state.bubble.text}</p>
           <p className="sm">「はい」でここまでの作業レポートを作成するよ。</p>

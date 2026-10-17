@@ -34,5 +34,6 @@
   "reminder": null,
   "jobs": [],
   "completionSeq": 0,
-  "warning": null
+  "warning": null,
+  "advanceNotice": null
 }

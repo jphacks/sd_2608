@@ -50,6 +50,9 @@ html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] 
 .pochi-app .settings-panel fieldset>button { width:100%; background:var(--ear); color:var(--card); border-color:var(--ear); }
 .pochi-app .alert { background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:10px; font-size:12.5px; margin-bottom:8px; }
 .pochi-app .notice { margin-bottom:12px; }
+.pochi-app .advance-notice { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:14px; }
+.pochi-app .advance-notice p { flex:1; margin:0; }
+.pochi-app .advance-notice button { flex:none; min-height:32px; padding:4px 8px; border:1px solid var(--line); border-radius:10px; background:transparent; font-size:12px; font-weight:400; }
 .pochi-app .notice[data-emphasis=hard] { border:2px solid var(--ear); border-radius:16px; padding:10px; }
 .pochi-app .dots span { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ear); margin:0 3px; animation:pochi-dots 1.2s infinite; }
 .pochi-app .dots span:nth-child(2) { animation-delay:.2s; }

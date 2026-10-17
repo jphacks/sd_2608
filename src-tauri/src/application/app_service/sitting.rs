@@ -185,10 +185,20 @@ pub(super) fn project(state: &mut State) {
             })
         })
         .transpose();
-    match (session, reminder) {
-        (Ok(session), Ok(reminder)) => {
+    let advance_notice = engine
+        .advance_notice()
+        .map(|notice| {
+            Ok::<_, ApiError>(AdvanceNotice {
+                session_id: domain_id(state, "session", notice.session_id)?,
+                remaining_ms: number(notice.remaining_ms.div_ceil(1_000) * 1_000),
+            })
+        })
+        .transpose();
+    match (session, reminder, advance_notice) {
+        (Ok(session), Ok(reminder), Ok(advance_notice)) => {
             state.snapshot.session = session;
             state.snapshot.reminder = reminder;
+            state.snapshot.advance_notice = advance_notice;
         }
         _ => {
             projection_error(state);
@@ -233,5 +243,6 @@ fn projection_error(state: &mut State) {
     };
     state.snapshot.session = None;
     state.snapshot.reminder = None;
+    state.snapshot.advance_notice = None;
     state.snapshot.warning = Some(internal());
 }

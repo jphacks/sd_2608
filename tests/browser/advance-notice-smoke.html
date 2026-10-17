@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>休憩予告の表示テスト</title>
+<h1>休憩予告の表示テスト</h1>
+<p>実カメラ・PC取得・外部通信なし。デモの27秒／30秒を手動時計で再現します。</p>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import PochiApp from "/src/pochi/PochiApp.tsx";
+import { AppController } from "/src/application/AppController.ts";
+import { MockGateway } from "/src/adapters/mock/MockGateway.ts";
+import { petManifest } from "/src/presentation/petManifest.ts";
+const gateway = new MockGateway(), controller = new AppController(gateway);
+const root = createRoot(document.querySelector("#app"));
+const output = document.querySelector("#result"), checks = [];
+const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const check = (condition, label) => { if (!condition) throw Error(label); checks.push(label); };
+const preview = () => document.querySelector('[aria-label="休憩の予告"]');
+const render = () => {
+  const state = controller.getState();
+  // 本番の手動顔入力では情報用 warning が付く。その表示と予告を両立させる。
+  const snapshot = state.snapshot && { ...state.snapshot, warning: {
+    code: "invalidState", message: "手動テスト（カメラ不使用）：", retryable: false,
+  } };
+  root.render(React.createElement(PochiApp, { state: { ...state, snapshot }, actions: controller.actions,
+    petManifest, desktop: true, profile: "demo", manual: true }));
+};
+controller.subscribe(render);
+try {
+  await controller.connect();
+  await controller.actions.start({ profile: "demo", expectedSettingsRevision: 0, reportMode: "local",
+    consent: { activity: true, history: true, externalReport: false } });
+  gateway.advanceBy(26_000); await paint();
+  check(!preview(), "26秒では予告しない");
+  gateway.advanceBy(1_000); await paint();
+  check(preview()?.textContent.includes("あと3秒"), "27秒であと3秒の予告（手動顔入力の案内と共存）");
+  check(preview().querySelectorAll("button").length === 1 && preview().querySelector("button").textContent === "閉じる",
+    "予告は閉じるボタンだけで Yes / No は表示しない");
+  document.querySelector(".gear").click(); await paint();
+  check(!preview() && document.querySelector(".settings-panel"), "設定パネルを優先し、予告で操作を遮らない");
+  [...document.querySelectorAll(".bub button")].find(button => button.textContent === "もどる").click(); await paint();
+  check(!!preview(), "予告期間内ならパネルを閉じた後に表示");
+  preview().querySelector("button").click(); await paint();
+  gateway.advanceBy(1_000); await paint();
+  check(!preview() && !controller.getState().bubble && !gateway.getSnapshot().jobs.length,
+    "閉じた予告は次の更新で再表示せず、回答・レポートを発生させない");
+  gateway.advanceBy(2_000); gateway.detectBoundary(); await paint();
+  check(!preview() && document.querySelector('[aria-label="休憩のお知らせ"]')?.querySelectorAll("button").length === 2,
+    "30秒の区切りで通常の Yes / No を表示");
+  await controller.actions.answer("no");
+  gateway.setPresence("unknown"); gateway.setPresence("present"); gateway.advanceBy(27_000); await paint();
+  check(!!preview(), "新しい在席サイクルで予告を再表示");
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await paint();
+  check(!preview() && !gateway.getSnapshot().jobs.length, "Escape は予告を閉じるだけ");
+  output.textContent = JSON.stringify({ result: "PASS", checks, cameraUsed: false }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}`; }
+addEventListener("pagehide", () => { void controller.dispose(); });
+</script></html>

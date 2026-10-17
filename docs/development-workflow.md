@@ -52,7 +52,7 @@ npm run tauri dev
 | `npm run dev:mock` | 実装済み。`vite --mode mock`。カメラ・Rust・実 API なしで UI を開く |
 | `npm test` | 実装済み。TypeScript の型検査と Node 標準テスト。コントローラー・モックの競合と状態遷移を確認。GIF 演出はブラウザーで確認 |
 | 顔モデルの準備 | B-03 で実装済み。固定モデル・ライセンスを格納し、npm ci / dev / build で対応 WASM をコピー。手動実行は npm run assets:prepare |
-| 共通フィクスチャー | 実装済み。`src/contracts/fixtures.ts` と MockGateway の15シナリオ |
+| 共通フィクスチャー | 実装済み。`src/contracts/fixtures.ts` と MockGateway の16シナリオ |
 | Windows CI | 未実装。フロント・Rust のテストとビルド。実 API キーやカメラを要求しない |
 | 表示資産 | manifest とお座り／伏せの仮 SVG を実装済み。完成 GIF と連続演出は表示担当が作成 |
 

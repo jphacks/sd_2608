@@ -58,6 +58,10 @@ export type Reminder = {
   cause: "boundary" | "initialLimit" | "snoozeLimit" | "hardLimit";
   shownAt: TimestampMs;
 };
+export type AdvanceNotice = {
+  sessionId: Id;
+  remainingMs: DurationMs; // 最初の休憩目安まで。Rust の単調時計で算出する。
+};
 export type ReminderPolicyState = {
   active: Reminder | null;
   eligibleAt: TimestampMs | null;
@@ -152,6 +156,7 @@ export type AppSnapshot = {
   presence: PresenceState;
   session: SittingSession | null;
   reminder: Reminder | null;
+  advanceNotice: AdvanceNotice | null;
   jobs: ReportJobView[];
   completionSeq: number;
   warning: ApiError | null;

@@ -134,6 +134,11 @@ pub struct Reminder {
     pub cause: ReminderCause,
     pub shown_at: Time,
 }
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdvanceNotice {
+    pub session_id: u64,
+    pub remaining_ms: u64,
+}
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DomainError {
     Exhausted,
@@ -174,6 +179,21 @@ impl Engine {
         } else {
             None
         }
+    }
+    /// 最初の30分の目安までの予告。表示を閉じても通知・回答の状態は変更しない。
+    pub fn advance_notice(&self) -> Option<AdvanceNotice> {
+        if self.presence.value != Presence::Present {
+            return None;
+        }
+        let session = self.session.as_ref().filter(|s| s.ended_at.is_none())?;
+        let remaining_ms = self.timings.first_ms.checked_sub(session.elapsed_ms)?;
+        if remaining_ms == 0 || remaining_ms > self.timings.advance_notice_lead_ms {
+            return None;
+        }
+        Some(AdvanceNotice {
+            session_id: session.id,
+            remaining_ms,
+        })
     }
     pub fn tick(
         &mut self,

@@ -15,6 +15,8 @@
 
 B-09 では AppGateway の任意の `window: WindowAdapter` と AppViewActions に演出・配置・最前面・ドラッグ・終了・再接続を追加した。IPC v1 と既存10コマンドは変更していない。Yes は `reminder_respond` に統一し、画面だけで休憩を開始する別経路は置かない。[統合記録](backend-integration.md) を参照。
 
+休憩予告の追加では `AppSnapshot` に必須 nullable の `advanceNotice: { sessionId, remainingMs } | null` を追加した。タイミングは Rust Domain、表示文言と閉じたセッションの記憶は AppController が所有する。`dismissAdvanceNotice` は表示操作だけであり、新しい IPC コマンドや `reminder_respond` の呼び出しはない。Rust DTO・TypeScript Decoder・共通 JSON fixture を同時に更新しているため、フロントと Rust は同じビルドを使用する。
+
 ## 2. IPC 共通規則
 
 - API v1。コマンド名は snake_case、要求・応答の JSON は camelCase。すべてのコマンドをメインウィンドウだけに許可する。
