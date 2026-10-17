@@ -2,6 +2,8 @@
 
 作成日：2026-10-17。**実装に向けた設計であり、現在の `sd_2608` に実装済みという意味ではない。** 要求の正本は [機能要件・仕様](requirements.md)、通信契約は [API 設計](api-design.md)、型の正本は [型・データモデル](data-model.md) とする。
 
+先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。実センサー・Rust Domain・AI・保存は未接続。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。
+
 ## 1. 構成と責務
 
 Tauri 2 + React + TypeScript + Rust を使用する。顔検出は WebView 内、PC 情報取得・判定・予約・保存・AI 通信は Rust に置く。**時間判定とレポート予約の実行主体を Rust に集め、画面の開閉・GIF の再生から独立させる。**

@@ -2,6 +2,8 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
+実装状況：TypeScript の共通型・`AppGateway`・IPC コマンド表・MockGateway・表示用コントローラーを実装済み。実際の Tauri コマンドと TauriGateway は未実装。[表示開発ガイド](ui-development.md) のモックで UI を先行開発できる。
+
 ## 1. API の境界
 
 1. **UI → AppGateway**：A が使う TypeScript の接続口。実環境とモックで同じインターフェース。

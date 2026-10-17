@@ -7,12 +7,12 @@
 | 項目 | 現状・方針 |
 |---|---|
 | 開発先 | `sd_2608`。origin は `https://github.com/jphacks/sd_2608` |
-| 現在のコード | Tauri 2 / React 19 / TypeScript 6 / Vite 8 の初期構成 |
+| 現在のコード | Tauri 2 / React 19 / TypeScript 6 / Vite 8 と表示開発用の共通基盤 |
 | 確認したローカルツール | Node 22.12.0、npm 10.9.0、Rust / Cargo 1.99.0 |
 | OS | 統合・デモは Windows。Windows 11 x64 をチームの基準環境とする案 |
 | 依存固定 | `package-lock.json` と `src-tauri/Cargo.lock` を共有。通常の取得は `npm ci` |
-| 現在使える npm コマンド | `dev`、`build`、`preview`、`tauri` |
-| 未整備 | モックモード、顔モデル資産準備、フロントテスト、CI、Node / Rust 版固定 |
+| 現在使える npm コマンド | `dev`、`dev:mock`、`test`、`build`、`preview`、`tauri` |
+| 未整備 | 実 Gateway・顔モデル資産準備・本番ロジック、CI、Node / Rust 版固定 |
 
 上記はこの端末の確認値で、2人の環境での動作確認を保証するものではない。最初に両端末で起動・ビルドを確認し、問題がなければ `.node-version` に `22.12.0`、`rust-toolchain.toml` に `1.99.0` を固定する。採用版を変える場合は2人で確認し、CI も同時に更新する。
 
@@ -39,20 +39,20 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。現在は初期画面が表示されることを確認する段階であり、ペット・カメラ・通知は未実装。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。現在、通常起動は未接続の案内画面。UI は `npm run dev:mock` で開発でき、カメラ・本番通知・本番レポートは未接続。
 
 ## 3. 並行開発用に追加する環境
 
-以下は **土台フェーズで追加する予定**。この文書の作成時点では未実装なので、整備前にコマンドが使える前提にしない。
+表示作業を先行するため、モック・共通型・テストを先に整備した。使い方は [表示開発ガイド](ui-development.md) を参照。下表で実装済みと残作業を分ける。
 
 | 追加するもの | 内容・完了条件 |
 |---|---|
-| `npm run dev:mock` | `vite --mode mock`。MockGateway を選択し、カメラ・Rust・実 API なしで UI を開く |
-| `npm test` | Vitest を導入。Presenter、Gateway 契約、アニメーション割り込みを確認 |
-| 顔モデルの準備 | プロトタイプから MediaPipe の依存・モデル・ライセンスを移植。ビルド前に対応 WASM をコピーするスクリプトを追加 |
-| 共通フィクスチャー | `src/contracts/fixtures/`。30分・No・区切り・60分・離席5分・成功／失敗カードを再現 |
-| Windows CI | フロント・Rust のテストとビルド。実 API キーやカメラを要求しない |
-| 表示資産 | GIF manifest とお座り／伏せの静止画像。未完成 GIF は代替画像で操作を確認できる |
+| `npm run dev:mock` | 実装済み。`vite --mode mock`。カメラ・Rust・実 API なしで UI を開く |
+| `npm test` | 実装済み。TypeScript の型検査と Node 標準テスト。コントローラー・モックの競合と状態遷移を確認。GIF 演出はブラウザーで確認 |
+| 顔モデルの準備 | 未実装。プロトタイプから MediaPipe の依存・モデル・ライセンスを移植し、対応 WASM のコピー処理を追加 |
+| 共通フィクスチャー | 実装済み。`src/contracts/fixtures.ts` と MockGateway の15シナリオ |
+| Windows CI | 未実装。フロント・Rust のテストとビルド。実 API キーやカメラを要求しない |
+| 表示資産 | manifest とお座り／伏せの仮 SVG を実装済み。完成 GIF と連続演出は表示担当が作成 |
 
 モックの手動時刻操作・顔有無操作は開発モードの専用画面にだけ出す。本番ビルドではモックを選択できないようにする。UI 担当はモックで作業し、Windows 実機の透過・最前面・ドラッグ・表示倍率は統合時に確認する。
 
@@ -92,7 +92,7 @@ cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml --locked
 ```
 
-土台整備後は `npm test` も必須チェックにする。CI は Windows runner で、採用した Node / Rust の版を使い、`npm ci` → 顔資産準備 → フロントテスト・ビルド → Rust 整形・テストを実行する。インストーラーの生成は日常の PR チェックと分ける。
+`npm test` も必須チェックにする。今後整備する CI は Windows runner で、採用した Node / Rust の版を使い、`npm ci` → 顔資産準備（導入後）→ フロントテスト・ビルド → Rust 整形・テストを実行する。インストーラーの生成は日常の PR チェックと分ける。
 
 | 対象 | 主な検証 |
 |---|---|
