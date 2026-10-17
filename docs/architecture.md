@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。**実装に向けた設計であり、現在の `sd_2608` に実装済みという意味ではない。** 要求の正本は [機能要件・仕様](requirements.md)、通信契約は [API 設計](api-design.md)、型の正本は [型・データモデル](data-model.md) とする。
 
-先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。Windows の PC 取得は B-02、顔入力は B-03、Rust の在席・通知 Domain は B-04、履歴・設定・保存は B-05、ローカル生成・予約は B-06 で接続済み。AI は後続作業。
+先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。Windows の PC 取得は B-02、顔入力は B-03、Rust の在席・通知 Domain は B-04、履歴・設定・保存は B-05、ローカル生成・予約は B-06、AI通信は B-07 で接続済み。
 
 B-01 で AppService の初期状態、Rust IPC、TauriGateway、応答検証と実アプリの表示接続を追加した。実装済みの範囲と未接続コマンドの動作は [B-01 メモ](backend-runtime-contract.md) を参照。
 
@@ -15,6 +15,8 @@ B-04 で `domain/{presence,session,boundary,reminder,timings,event}.rs` を追�
 B-05 で `domain/history.rs`、`application/privacy.rs`、`application/persistence.rs` と Repository / SecretStore ポートを追加した。JSON と DPAPI の実装は `infrastructure/storage/` に置き、起動時は設定と保存済みカードだけを復元する。[B-05 メモ](backend-history-storage.md) を参照。
 
 B-06 で `domain/report.rs`、`application/report_coordinator.rs`、`application/app_service/reports.rs` を追加した。Domain は一意性・期限・優先順・試行、Coordinator は固定入力、単一ワーカーはローカル生成・保存を担当する。状態と Persistence のロックを分離し、I/O 中の停止・世代切替を検出する。完成カードの参照先を確定した後に completionSeq を発行する。[B-06 メモ](backend-report-coordinator.md) を参照。
+
+B-07でReportProviderとHTTPアダプターを追加した。ワーカーは固定入力と秘密の保存IDを使い、復号後は保存ロックを解放して通信する。現在の実行世代を確認し、取消後の完了を破棄する。Domainや表示用Propsには通信仕様を追加しない。[B-07 メモ](backend-ai-provider.md) を参照。
 
 ## 1. 構成と責務
 

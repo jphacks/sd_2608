@@ -2,6 +2,8 @@
 
 対象：`feat/backend-report-coordinator`。B-05 を `develop/backend` にマージした `fdf8aad` から分岐。[B担当の計画](backend-development-plan.md) の B-06、[機能仕様](requirements.md) の AC-04・05 とジョブに関わる AC-06 に対応する。
 
+後続更新：B-06はdevelop/backendへ取り込み済み。[B-07](backend-ai-provider.md)でAI生成とAI再試行を追加した。以下の未接続記述はB-06時点の記録。
+
 ## 実装した範囲
 
 | ファイル | 責務 |

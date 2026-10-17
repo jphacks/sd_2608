@@ -14,7 +14,8 @@
 - B-03 の顔検出・入力受付・解放・手動入力を実装し、develop/backend へ取り込み済み。[B-03 メモ](backend-face-detection.md) を参照。
 - B-04 の在席・セッション・区切り・休憩通知と回答を実装し、develop/backend へ取り込み済み。[B-04 メモ](backend-presence-reminder.md) を参照。
 - B-05 の履歴・マスク・設定保存・キー保護・保存カード参照を実装し、develop/backend へ取り込み済み。[B-05 メモ](backend-history-storage.md) を参照。
-- B-06 のローカルカード生成・離席5分予約・重複防止・再試行・表示キュー接続を実装した。[B-06 メモ](backend-report-coordinator.md) に検証と競合時の扱いを記載。AI と復帰処理の強化は B-07〜09 の後続作業。
+- B-06 のローカルカード生成・離席5分予約・重複防止・再試行・表示キュー接続を実装し、develop/backendへ取り込み済み。[B-06 メモ](backend-report-coordinator.md) を参照。
+- B-07 の Gemini／OpenAI互換API、送信同意、失敗カード・明示的再試行を実装した。[B-07 メモ](backend-ai-provider.md) にローカル検証と未実施の実サービス確認を区別して記載。復帰処理と実機統合は B-08／09 の後続作業。
 
 B担当の完成目標は、実 Windows アプリで次の操作が通ること。
 

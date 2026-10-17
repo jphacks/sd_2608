@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：B-01〜05 の通信・センサー・在席・通知・履歴・保存に加え、B-06 のローカルカード作成・離席5分予約・再試行を実装済み。Yes は受付済みジョブの reportId を返し、完成後に completionSeq と app://snapshot で表示を通知する。AI 生成は B-07 の後続作業。詳細は [B-06 メモ](backend-report-coordinator.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
+実装状況：B-01〜06 の通信・センサー・在席・通知・履歴・保存・予約に加え、B-07 のAI生成と失敗カード・再試行を実装済み。Yes は受付済みジョブの reportId を返し、完成後に completionSeq と app://snapshot で表示を通知する。詳細は [B-06 メモ](backend-report-coordinator.md)／[B-07 メモ](backend-ai-provider.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 
@@ -92,11 +92,11 @@ export type RetryReportRequest = {
 - `reminder_respond` は失効した通知へ `staleReminder`。同じ要求の再送は成功結果を返すが、別要求で回答済み通知へ回答し直せない。
 - B-06 の Yes は reportId を返し、No は null。同一セッションの再度の Yes は既存 ID を返す。自然離席は確定時刻＋5分（demo は5秒）を dueAt とし、内部の単調時計で判定する。帰席で取り消さない。local カードは job.status:ready / report.status:local / content:null で返す。
 - `settings_update` はキーを応答へ返さず `hasApiKey` のみ返す。Provider の形式・接続先変更時は旧キーを流用せず、新規キー登録が必要。設定変更で送信同意は引き継がない。
-- B-05 の設定保存は停止中・設定 revision 一致が条件。除外アプリは実行ファイル名を最大100件・各200文字。endpoint は2,048文字、model は200文字、キーは空白・制御文字なしの ASCII で最大4,096バイト。HTTPS、またはループバックの HTTP に限り、URL の認証情報・クエリー・フラグメントは拒否する。AI 設定の保存は可能だが、AI モードの開始・再試行は B-07 まで利用不可。
+- 設定保存は停止中・設定 revision 一致が条件。除外アプリは実行ファイル名を最大100件・各200文字。endpoint は2,048文字、model は200文字、キーは空白・制御文字なしの ASCII で最大4,096バイト。HTTPS、またはループバックの HTTP に限り、URL の認証情報・クエリー・フラグメントは拒否する。B-07でAIモードの開始・再試行も接続した。モデルは空不可で前後の空白を拒否し、Geminiでは英数字・ハイフン・アンダースコア・ピリオドに制限する。
 - `report_list` の limit は1〜20。cursor は不透明なページ位置。削除後の古い cursor は再取得を案内する。
 - B-05 の cursor はプロセスとカード一覧の世代に結び付く。新規保存・更新・期限整理・削除・再起動の後は、cursor:null から取得し直す。読み出しでも7日の保持期限を確認する。保存失敗は storageFailure とし、data_clear では失敗しても監視停止・実行世代更新を先に確定する。
 - `report_retry` は元の固定履歴と現在の明示的同意を使う。現在の設定 revision をジョブへ取り込み、接続先が変わっていたら、その接続先で送ることを UI で確認してから再試行する。過去の失敗カードも同じ ID で再試行可能。
-- B-06 の再試行はローカル生成。監視開始後の activity / history 同意、failed 状態と expectedAttempt 一致を条件に、同じ ID・履歴・作成時刻を維持して attempt を増やす。queued / running / ready / cancelled は拒否する。保存失敗のカードは error.code:storageFailure の failed としてメモリーから参照できるが、再起動で消える。保存成功は装わず、warning にも失敗を返す。
+- 再試行は監視開始後の activity / history 同意、failed 状態と expectedAttempt 一致が条件。同じ ID・履歴・作成時刻を維持して attempt を増やす。現在の監視方式がAIならexternalReport同意と有効な設定・キーも必要で、UIは現在の送信先・モデルを毎回確認する。queued / running / ready / cancelled は拒否する。保存失敗のカードは error.code:storageFailure の failed としてメモリーから参照できるが、再起動で消える。保存成功は装わず、warning にも失敗を返す。
 - 保存を伴う IPC は非同期コマンドから blocking worker へ渡し、WebView のメインスレッドを保存待ちで止めない。snapshot・顔入力・Stop は保存ロックを待たない。削除完了時に警告が変わった場合も revision を進める。
 
 ## 5. 状態イベントと同期
@@ -143,7 +143,7 @@ MockGateway は時計を進めて在席・離席・No・60分・レポート成�
 
 ## 7. AI Provider の契約
 
-内部インターフェースは `generate(maskedHistoryText, instruction, cancelToken) → ReportContent`。Gemini と OpenAI 互換 Chat Completions のアダプターをプロトタイプから移植する。
+内部インターフェースは `ReportProvider::generate(settings, key, history, current) → Result<ReportContent, ApiError>`。HTTPアダプターが固定履歴から送信テキストを作り、固定の指示を付ける。Gemini と OpenAI 互換 Chat Completions に対応し、`current`で停止・削除・世代切替を検出する。
 
 | 項目 | 設計 |
 |---|---|
@@ -155,6 +155,8 @@ MockGateway は時計を進めて在席・離席・No・60分・レポート成�
 | 失敗 | HTTP・認証・不正 JSON・スキーマ不一致をカードの失敗へ変換。生レスポンス・キーを UI やログへ出さない |
 
 Provider 設定の endpoint は形式ごとに検証する。Gemini はベース URL にモデルの generateContent パスを組み立て、互換形式は Chat Completions の完全な URL として扱う。API キーは Rust が読み出して必要な認証ヘッダーへ設定し、フロントへ読み戻さない。
+
+固定入力は設定revision・同意・モード・秘密の保存IDを含む。履歴が空なら通信・復号をせずlocalカードにする。AI失敗は同じ履歴を持つfailedカードを保存して通知し、生レスポンスは渡さない。実装・制限・実サービスの未検証事項は [B-07 メモ](backend-ai-provider.md) を参照。
 
 ## 8. 代表的な競合とエラー
 

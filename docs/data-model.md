@@ -10,6 +10,8 @@ B-04 は FaceObservation に内部の sequence を追加した。Domain は独�
 
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 
+B-07では内部の`report_coordinator::Input`に秘密の保存IDを追加した。設定revision・同意・モード・履歴と一緒に固定し、平文キーは実行時だけ復号する。HTTP本文へはアプリ名・マスク済みタイトル・区間時刻・対象期間だけを渡す。共有DTOや保存JSONのスキーマは変更していない。[AIの固定入力・再試行](backend-ai-provider.md) を参照。
+
 ## 1. 共通ルール
 
 - すべての日時は UTC Unix ミリ秒、期間はミリ秒。JSON の数値は非負の安全な整数とし、Rust 側でも範囲を検証する。
