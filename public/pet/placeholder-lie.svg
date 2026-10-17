@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <title>表示開発用の伏せ犬</title>
+  <ellipse cx="120" cy="214" rx="90" ry="10" fill="#d7cec2"/>
+  <ellipse cx="142" cy="180" rx="66" ry="32" fill="#bc8757"/>
+  <ellipse cx="111" cy="204" rx="49" ry="10" fill="#f3dfbf"/>
+  <ellipse cx="79" cy="161" rx="44" ry="39" fill="#d4a26d"/>
+  <ellipse cx="42" cy="167" rx="15" ry="34" transform="rotate(10 42 167)" fill="#80573e"/>
+  <ellipse cx="115" cy="167" rx="15" ry="34" transform="rotate(-10 115 167)" fill="#80573e"/>
+  <ellipse cx="79" cy="179" rx="25" ry="17" fill="#f3dfbf"/>
+  <path d="M57 157 Q63 151 69 157 M88 157 Q94 151 100 157" fill="none" stroke="#342c27" stroke-width="3" stroke-linecap="round"/>
+  <path d="M72 174 Q79 168 86 174 Q79 185 72 174" fill="#342c27"/>
+</svg>
