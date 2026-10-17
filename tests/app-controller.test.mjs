@@ -6,6 +6,20 @@ const { MockGateway } = await fromBuild("adapters/mock/MockGateway.js");
 const { AppController } = await fromBuild("application/AppController.js");
 const { createSnapshot, createReport, MINUTE } = await fromBuild("contracts/fixtures.js");
 
+test("離席から安定化中を経た帰席で一度だけあいさつし、unknownでは帰席待ちを解除する", async () => {
+  for (const intermediate of ["uncertain", "unknown"]) {
+    const gateway = new MockGateway(); let receive;
+    gateway.connect = async callback => { receive = callback; return createSnapshot(); };
+    const controller = new AppController(gateway); await controller.connect();
+    const state = (value, revision) => { const snapshot = createSnapshot(); snapshot.revision = revision; snapshot.runtime.phase = "running";
+      snapshot.presence.value = value; return snapshot; };
+    receive(state("away", 1)); receive(state(intermediate, 2)); receive(state("present", 3));
+    assert.equal(controller.getState().pet.greeting, intermediate === "uncertain" ? "おかえりなさい！" : null);
+    receive(state("present", 4)); assert.equal(controller.getState().pet.greeting, null);
+    await controller.dispose();
+  }
+});
+
 test("初回接続では過去カードを勝手に開かず、ペットから再表示できる", async () => {
   const gateway = new MockGateway(); gateway.loadScenario("reportReady");
   const controller = new AppController(gateway); await controller.connect();

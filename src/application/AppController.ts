@@ -20,6 +20,7 @@ export class AppController {
   private reportRead = 0;
   private listRead = 0;
   private retiredRuntimes = new Set<Id>();
+  private awaitingReturn = false;
 
   constructor(private readonly gateway: AppGateway) {}
   getState = (): AppViewModel => this.state;
@@ -70,6 +71,7 @@ export class AppController {
     await this.gateway.dispose();
   }
   private resetRuntime(snapshot: AppSnapshot): void {
+    this.awaitingReturn = false;
     this.seenCompletion = snapshot.completionSeq;
     this.reportQueue = [];
     this.reportRead++; this.listRead++;
@@ -83,7 +85,10 @@ export class AppController {
       this.resetRuntime(snapshot);
     }
     else if (!initial && previous && snapshot.revision <= previous.revision) return;
-    const returned = previous?.presence.value === "away" && snapshot.presence.value === "present";
+    const returned = this.awaitingReturn && snapshot.presence.value === "present" && snapshot.runtime.phase === "running";
+    if (snapshot.runtime.phase !== "running" || snapshot.presence.value === "unknown") this.awaitingReturn = false;
+    else if (snapshot.presence.value === "away") this.awaitingReturn = true;
+    else if (snapshot.presence.value === "present") this.awaitingReturn = false;
     const resting = snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present";
     const reminder = snapshot.reminder;
     const currentReportId = this.currentReportId();

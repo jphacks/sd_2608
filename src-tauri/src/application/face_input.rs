@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct FaceObservation {
+    pub sequence: u64,
     pub face_detected: bool,
     pub source: FaceSource,
     pub observed_at_ms: u64,
@@ -80,6 +81,7 @@ impl FaceIngress {
         }
         self.latest = match input {
             FaceInput::Sample { face_detected, .. } => Some(FaceObservation {
+                sequence: sequence.get(),
                 face_detected: *face_detected,
                 source,
                 observed_at_ms: observed_at.get(),
