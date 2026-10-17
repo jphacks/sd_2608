@@ -85,7 +85,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
   </div></details>;
   return <main className="pochi-app" data-reduced-motion={reduced} aria-label="ポチ">
     <div className="pet">
-      <div className={`bub${panel === "settings" ? " wide" : ""}`} role="dialog" aria-label={panel === "settings" ? "ポチの設定" : "ポチのふきだし"} aria-live="polite" hidden={hideBubble}>
+      <div className={`bub${panel === "settings" ? " wide" : ""}`} data-pochi-hit role="dialog" aria-label={panel === "settings" ? "ポチの設定" : "ポチのふきだし"} aria-live="polite" hidden={hideBubble}>
         <div className="bub-body">
         {state.connection !== "connected" && <p className="sm" role="status">{state.connection === "connecting" ? "アプリへ接続しています…" : "アプリへ接続できません。"}</p>}
         {state.connection === "error" && !state.error && <div className="bs"><button onClick={() => { void actions.reconnect(); }}>再接続</button></div>}
@@ -129,9 +129,9 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
         <p className="status-line" role="status">{state.pet.statusText}{running && <> · <time aria-label="連続在席時間">{duration(snapshot?.session?.elapsedMs ?? 0)}</time></>}</p>
         </div>
       </div>
-      <button className={`chip${hideBubble ? " on" : ""}`} aria-label="作業メニューを開く" onClick={() => setPanel("menu")}>{state.pet.statusText}{running && <> · {duration(snapshot?.session?.elapsedMs ?? 0)}</>}</button>
-      <button className="gear" aria-label="設定" onClick={() => setPanel("settings")}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.4 1a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.5a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.5a7 7 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></svg></button>
-      <div className={`dwrap${state.motion.id === "rest" ? " lying" : ""}`}><span className="zz" aria-hidden="true">z z</span><button id="petbtn" aria-label="ポチ：クリックで開始・メニュー、ダブルクリックで設定" onClick={event => {
+      <button className={`chip${hideBubble ? " on" : ""}`} data-pochi-hit aria-label="作業メニューを開く" onClick={() => setPanel("menu")}>{state.pet.statusText}{running && <> · {duration(snapshot?.session?.elapsedMs ?? 0)}</>}</button>
+      <button className="gear" data-pochi-hit aria-label="設定" onClick={() => setPanel("settings")}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.4 1a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.5a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.5a7 7 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></svg></button>
+      <div className={`dwrap${state.motion.id === "rest" ? " lying" : ""}`}><span className="zz" aria-hidden="true">z z</span><button id="petbtn" data-pochi-hit="sprite" aria-label="ポチ：クリックで開始・メニュー、ダブルクリックで設定" onClick={event => {
         if (clickTimer.current) clearTimeout(clickTimer.current);
         if (event.detail > 1) return;
         if (event.detail === 0) tap(); else clickTimer.current = setTimeout(tap, 550);

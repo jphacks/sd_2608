@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>クリック透過の表示判定テスト</title>
+<h1>クリック透過の表示判定テスト</h1>
+<p>実際のポチの DOM・PNG のアルファ値を確認します。OS へのクリック透過は Tauri 実機で確認してください。</p>
+<pre id="result" role="status">loading</pre>
+<iframe title="ポチの表示" src="/?window=1" width="440" height="760"></iframe>
+<script type="module">
+import { createPochiHitTest, spritePixel } from "/src/pochi/hitTest.ts";
+const output = document.querySelector("#result");
+const frame = document.querySelector("iframe");
+const checks = [];
+const check = (condition, label) => { if (!condition) throw Error(label); checks.push(label); };
+const until = async predicate => {
+  const deadline = performance.now() + 10_000;
+  while (!predicate()) {
+    if (performance.now() > deadline) throw Error("timeout");
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+};
+try {
+  await until(() => frame.contentDocument?.querySelector(".dog[data-hit-src]") && frame.contentDocument.querySelector(".bs button:not(:disabled)"));
+  const doc = frame.contentDocument;
+  const hit = createPochiHitTest(doc);
+  const center = element => { const r = element.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  check(!hit({ x: 5, y: 5 }), "透明な背景は透過");
+  check(hit(center(doc.querySelector(".gear"))), "歯車は操作可能");
+  check(hit(center(doc.querySelector(".bub .bs button"))), "吹き出し内のボタンは操作可能");
+  const sprite = doc.querySelector(".dog");
+  const atlas = new Image(); atlas.src = sprite.dataset.hitSrc; await atlas.decode();
+  const canvas = document.createElement("canvas"); canvas.width = atlas.width; canvas.height = atlas.height;
+  const context = canvas.getContext("2d"); context.drawImage(atlas, 0, 0);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  const rect = sprite.getBoundingClientRect();
+  const sample = () => {
+    let transparent = 0, opaque = 0;
+    for (let y = 15; y < 160; y += 10) for (let x = 15; x < 160; x += 10) {
+      const point = { x: rect.left + x, y: rect.top + y };
+      const pixel = spritePixel(point, rect, atlas.width, atlas.height,
+        Number(sprite.dataset.hitColumns), Number(sprite.dataset.hitRows), Number(sprite.dataset.hitFrame));
+      const visible = pixels[(pixel.y * atlas.width + pixel.x) * 4 + 3] !== 0;
+      if (hit(point) !== visible) return null;
+      if (visible) opaque++; else transparent++;
+    }
+    return { transparent, opaque };
+  };
+  // hitTest 内の画像読込が完了してから比較する。
+  await until(() => !!sample());
+  const counts = sample();
+  check(counts.opaque > 0 && counts.transparent > 0, `ペットの不透明画素 ${counts.opaque} 点／透明画素 ${counts.transparent} 点が一致`);
+  doc.querySelector(".gear").click();
+  await until(() => doc.querySelector(".settings-panel"));
+  check(hit(center(doc.querySelector(".settings-panel input"))), "設定の入力欄は操作可能");
+  output.textContent = JSON.stringify({ result: "PASS", checks, nativeClickThroughVerified: false }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}`; }
+</script></html>
