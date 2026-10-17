@@ -1,106 +1,117 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { CSSProperties } from "react";
-import { PochiController } from "./controller.js";
-import { LocalRepository } from "./repository.js";
-import type { Settings, Session } from "./model.js";
-import { formatDuration } from "./model.js";
-import { desktop, isDesktop } from "./desktop.js";
+import { useEffect, useRef, useState } from "react";
+import type { AppViewProps } from "../contracts/ui.js";
+import type { TimingProfile } from "../contracts/domain.js";
+import { SettingsPanel } from "../components/SettingsPanel.js";
+import { ReportPanel } from "../components/ReportPanel.js";
 import { PochiSprite } from "./PochiSprite.js";
 import "./pochi.css";
 
-function notify(text: string, settings: Settings) {
-  if (settings.sound === "silent") return;
-  const chime = () => { void new Audio("/pet/pochi/chime.wav").play().catch(() => {}); };
-  const voice = "speechSynthesis" in window ? speechSynthesis.getVoices().find(v => v.lang.startsWith("ja")) : undefined;
-  if (settings.sound === "voice" && voice) {
-    speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = voice; utterance.lang = "ja-JP"; utterance.onerror = chime; speechSynthesis.speak(utterance);
-  } else chime();
-}
-const date = (ms: number) => new Date(ms).toLocaleString("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-function SessionReport({ session }: { session: Session }) {
-  return <article className="pochi-report-entry">
-    <header><div><small>{date(session.startedAt)}{session.endedAt === null ? " · 記録中" : " · 終了"}</small><h3>{session.task || "名前のない作業"}</h3></div><span className="pochi-pill">{session.kind === "study" ? "勉強" : "作業"}</span></header>
-    <dl className="pochi-stats"><div><dt>作業時間</dt><dd>{formatDuration(session.workMs)}</dd></div><div><dt>休憩時間</dt><dd>{formatDuration(session.restMs)}</dd></div><div><dt>休憩回数</dt><dd>{session.breaks.length}<small> 回</small></dd></div></dl>
-    {session.breaks.length === 0 ? <p className="pochi-muted">この作業では、まだ休憩していません。</p> : session.breaks.map((b, i) => <section className="pochi-break-entry" key={b.startedAt + ":" + i}>
-      <h4>{i + 1}回目の休憩 <small>{date(b.startedAt)} · {formatDuration(b.durationMs)}</small></h4>
-      <p><b>できたこと</b><br />{b.progress || "記入なし"}</p><p><b>困っていること</b><br />{b.problem || "記入なし"}</p>
-    </section>)}
-  </article>;
-}
-function SettingsForm({ settings, save, cancel, disabled }: { settings: Settings; save(s: Settings): void; cancel(): void; disabled: boolean }) {
-  const [draft, setDraft] = useState(settings), [error, setError] = useState("");
-  const number = (key: "remindMinutes" | "restMinutes" | "snoozeMinutes" | "petSize", label: string, min: number, max: number, suffix: string) => <label className="pochi-setting-row">{label}<span><input required type="number" min={min} max={max} step="1" value={draft[key]} onChange={e => setDraft({ ...draft, [key]: e.currentTarget.valueAsNumber })} /> {suffix}</span></label>;
-  return <form onSubmit={e => { e.preventDefault(); try { save(draft); } catch (cause) { setError(cause instanceof Error ? cause.message : "設定を確認してください。"); } }}>
-    <h2>ポチの設定</h2><p className="pochi-muted">あなたのペースに合わせよう。</p>
-    {number("remindMinutes", "休憩までの作業時間", 1, 180, "分")}{number("restMinutes", "休憩時間の目安", 1, 60, "分")}{number("snoozeMinutes", "「今は続ける」の後", 1, 120, "分")}{number("petSize", "ポチの大きさ", 150, 300, "px")}
-    <label className="pochi-setting-row">お知らせの音<select value={draft.sound} onChange={e => setDraft({ ...draft, sound: e.target.value as Settings["sound"] })}><option value="chime">チャイム</option><option value="voice">日本語の声</option><option value="silent">音を鳴らさない</option></select></label>
-    <label className="pochi-check"><input type="checkbox" checked={draft.reducedMotion} onChange={e => setDraft({ ...draft, reducedMotion: e.target.checked })} />動きを減らす</label>
-    {isDesktop && <label className="pochi-check"><input type="checkbox" checked={draft.alwaysOnTop} onChange={e => setDraft({ ...draft, alwaysOnTop: e.target.checked })} />ほかのウィンドウより手前に表示</label>}
-    {error && <p role="alert">{error}</p>}<div className="pochi-actions"><button type="button" onClick={cancel}>もどる</button><button className="pochi-primary" disabled={disabled}>保存してもどる</button></div>
-  </form>;
-}
-export default function PochiApp() {
-  const [controller] = useState(() => new PochiController(new LocalRepository({
-    getItem: k => window.localStorage.getItem(k), setItem: (k, v) => window.localStorage.setItem(k, v), removeItem: k => window.localStorage.removeItem(k),
-  }, crypto.randomUUID()), { monotonic: () => performance.now(), wall: Date.now }, new URLSearchParams(location.search).get("demo") === "1", undefined, notify));
-  const view = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const [task, setTask] = useState(""), [kind, setKind] = useState<"work" | "study">("work"), [nativeError, setNativeError] = useState("");
+const duration = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 3600).toString().padStart(2, "0")}:${Math.floor(seconds / 60 % 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+};
+
+/** A の表示。計時・休憩判定・保存は AppController と Gateway に委譲する。 */
+export default function PochiApp({ state, actions, desktop = false, profile = "normal", manual = false }: AppViewProps & {
+  desktop?: boolean; profile?: TimingProfile; manual?: boolean;
+}) {
+  const [panel, setPanel] = useState<"home" | "start" | "settings" | "history">("home");
+  const [consent, setConsent] = useState(false);
+  const [externalConsent, setExternalConsent] = useState(false);
+  const [pinned, setPinned] = useState(true);
   const [systemReduced, setSystemReduced] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { data, panel } = view, active = data.active, phase = active?.phase;
-  const openBreak = active?.breaks.find(b => b.endedAt === null);
-  const failed = !!view.error;
+  const snapshot = state.snapshot;
+  const running = snapshot?.runtime.phase === "running";
+  const busy = state.pending !== null || state.connection !== "connected";
+  const settings = snapshot?.settings;
+  const usesAi = settings?.reportMode === "ai" && !!settings.provider && settings.hasApiKey;
+  const reportOpen = state.report.phase !== "closed";
+  const generating = snapshot?.jobs.some(job => job.status === "running" || job.status === "queued");
   useEffect(() => {
-    controller.mount(); const interval = setInterval(controller.tick, 200);
-    document.documentElement.dataset.pochiDesktop = String(isDesktop);
-    const visibility = () => controller.setPaused(document.hidden);
-    const beforeUnload = (event: BeforeUnloadEvent) => { if (controller.getSnapshot().error) { event.preventDefault(); event.returnValue = ""; } };
-    const key = (event: KeyboardEvent) => { if (event.key === "Escape") controller.closePanel(); };
+    setConsent(false); setExternalConsent(false);
+    if (running) setPanel("home");
+  }, [snapshot?.runtimeId, settings?.revision, running]);
+  useEffect(() => {
+    document.documentElement.dataset.pochiDesktop = String(desktop);
     const media = matchMedia("(prefers-reduced-motion: reduce)");
-    const motionPreference = () => setSystemReduced(media.matches); media.addEventListener("change", motionPreference);
-    let disposed = false, unlisten = () => {};
-    void desktop.onClose(() => { controller.end(true); }).then(fn => { if (disposed) fn(); else unlisten = fn; }).catch(() => setNativeError("終了操作を接続できません。画面の終了ボタンから記録を保存してください。"));
-    window.addEventListener("pagehide", controller.pageHide); window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("visibilitychange", visibility); window.addEventListener("keydown", key);
-    return () => { disposed = true; clearInterval(interval); if (clickTimer.current) clearTimeout(clickTimer.current);
-      unlisten(); controller.unmount(); window.removeEventListener("pagehide", controller.pageHide); window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("visibilitychange", visibility); window.removeEventListener("keydown", key); media.removeEventListener("change", motionPreference); };
-  }, [controller]);
-  useEffect(() => { void desktop.pin(data.settings.alwaysOnTop).catch(() => setNativeError("手前に固定できませんでした。")); }, [data.settings.alwaysOnTop]);
-  const begin = () => { if (!failed) controller.start(task, kind); };
-  const clickPet = (detail: number) => {
-    if (clickTimer.current) clearTimeout(clickTimer.current);
-    if (detail > 1) return;
-    const tap = () => { if (controller.getSnapshot().panel === "start") begin(); else controller.tap(); };
-    if (detail === 0) tap(); else clickTimer.current = setTimeout(tap, 550);
+    const change = () => setSystemReduced(media.matches);
+    media.addEventListener("change", change);
+    return () => { media.removeEventListener("change", change); delete document.documentElement.dataset.pochiDesktop;
+      if (clickTimer.current) clearTimeout(clickTimer.current); };
+  }, [desktop]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (panel !== "home") setPanel("home");
+      else if (state.bubble && !busy) void actions.answer("no");
+      else if (reportOpen) actions.closeReport();
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [actions, state.bubble, reportOpen, busy, panel]);
+  const begin = (ai: boolean) => {
+    if (!snapshot || !consent || (ai && !externalConsent)) return;
+    void actions.start({ profile, expectedSettingsRevision: snapshot.settings.revision, reportMode: ai ? "ai" : "local",
+      consent: { activity: true, history: true, externalReport: ai && externalConsent } });
   };
-  const reports = [...(active ? [active] : []), ...data.history];
-  return <main className="pochi-app" style={{ "--pet-size": `${data.settings.petSize}px` } as CSSProperties}>
-    {!isDesktop && <header className="pochi-page-header"><a href="#" aria-label="ポチ ホーム" onClick={e => { e.preventDefault(); controller.closePanel(); }}><span className="pochi-logo">ぽ</span> ポチ <small>休憩のおとも</small></a><span className="pochi-pill">{controller.demo ? "デモ · 12秒でお知らせ" : "この端末に保存"}</span></header>}
+  const retry = () => {
+    if (snapshot?.runtime.effectiveReportMode === "ai" && settings?.provider && !window.confirm(
+      `このレポートの固定済み履歴を次の AI へ再送信しますか？\n${settings.provider.endpoint}\nモデル: ${settings.provider.model}`,
+    )) return;
+    void actions.retryReport();
+  };
+  const tap = () => { if (running) void actions.openLatestReport(); else setPanel("start"); };
+  return <main className="pochi-app">
+    {!desktop && <header className="pochi-page-header"><a href="#" onClick={event => { event.preventDefault(); setPanel("home"); }}><span className="pochi-logo">ぽ</span> ポチ <small>休憩のおとも</small></a><span className="pochi-pill">表示開発</span></header>}
     <section className="pochi-room" aria-label="ポチとの作業スペース">
-      {!isDesktop && <div className="pochi-intro"><span className="pochi-eyebrow">ひと息、つこう。</span><h1>小さな休憩を、<br />いっしょに。</h1><p>がんばる時間も、休む時間も。<br />ポチがそっと寄り添います。</p><div className="pochi-guide"><span>01 作業を記録</span><span>02 ひと息つく</span><span>03 できたことを残す</span></div></div>}
+      {!desktop && <div className="pochi-intro"><span className="pochi-eyebrow">ひと息、つこう。</span><h1>小さな休憩を、<br />いっしょに。</h1><p>がんばる時間も、休む時間も。<br />ポチがそっと寄り添います。</p></div>}
       <div className="pochi-dock">
-        <div className={`pochi-bubble ${panel === "report" ? "pochi-bubble--report" : ""}`} aria-label="ポチのメニュー">
-          {view.error && <div role="alert" className="pochi-alert">{view.error}<div className="pochi-actions"><button onClick={() => controller.checkpoint()}>保存を再試行</button><button onClick={() => location.reload()}>再読み込み</button></div></div>}
-          {nativeError && <p role="alert" className="pochi-alert">{nativeError}</p>}
-          {view.notice && <p role="status" className="pochi-muted">{view.notice}</p>}
-          {phase === "reminder" && !["reminder", "settings"].includes(panel) && <button className="pochi-alert" onClick={controller.tap}>休憩のお知らせが届いているよ</button>}
-          {panel === "home" && <><span className="pochi-eyebrow">こんにちは</span><h2>今日も、いっしょに。</h2><p>今日は何をしようか？</p><button className="pochi-primary pochi-full" onClick={controller.tap} disabled={failed}>作業を記録</button></>}
-          {panel === "start" && <form onSubmit={e => { e.preventDefault(); begin(); }}><h2>今日は何から始める？</h2><div className="pochi-tabs"><button type="button" aria-pressed={kind === "work"} onClick={() => setKind("work")}>作業</button><button type="button" aria-pressed={kind === "study"} onClick={() => setKind("study")}>勉強</button></div><label>今回の作業<input maxLength={120} autoFocus value={task} placeholder="例：企画書のつづき" onChange={e => setTask(e.target.value)} /></label><p className="pochi-muted">もう一度ポチをクリックしても始められるよ。</p><button className="pochi-primary pochi-full" disabled={failed}>作業の記録をはじめる</button></form>}
-          {panel === "settings" && <SettingsForm settings={data.settings} save={s => controller.saveSettings(s)} cancel={controller.closePanel} disabled={failed} />}
-          {panel === "menu" && <><h2>ここにいるよ。</h2><p>{active?.task || "あなたのペースで、少しずつ。"}</p><div className="pochi-actions"><button className="pochi-primary" onClick={controller.accept} disabled={failed}>いま休憩する</button><button onClick={controller.continueWork}>作業を続ける</button></div><button className="pochi-text-button" onClick={() => controller.end()}>今回の作業を終える</button></>}
-          {panel === "quiet" && <><span className="pochi-eyebrow">作業中</span><h2>ここで、待ってるね。</h2><p>{view.message || "時間になったら声をかけるよ。"}</p><div className="pochi-actions"><button onClick={controller.accept} disabled={failed}>いま休憩する</button><button onClick={controller.openReports}>記録を見る</button></div></>}
-          {panel === "reminder" && <><span className="pochi-eyebrow">ひと息の時間</span><h2>少し立って、<br />休憩しない？</h2><p>のびをして、目も休めよう。</p><div className="pochi-actions"><button className="pochi-primary" onClick={controller.accept} disabled={failed}>はい・休憩する</button><button onClick={controller.decline} disabled={failed}>いいえ・今は続ける</button></div></>}
-          {panel === "rest" && <><span className="pochi-eyebrow">{view.restingDone ? "そろそろ戻る？" : "のんびり、休憩中"}</span><h2>ここまで、おつかれさま。</h2><p className="pochi-muted">ひとこと残して、ゆっくり休もう。メモは自動で保存するよ。</p><label>どこまでできた？<textarea maxLength={2000} rows={2} value={openBreak?.progress ?? ""} disabled={failed} onChange={e => controller.note(e.target.value, openBreak?.problem ?? "")} /></label><label>困っていることは？<textarea maxLength={2000} rows={2} value={openBreak?.problem ?? ""} disabled={failed} onChange={e => controller.note(openBreak?.progress ?? "", e.target.value)} /></label><div className="pochi-actions"><button className="pochi-primary" onClick={controller.returnToWork} disabled={failed}>戻ったよ</button><button onClick={controller.openReports}>記録を見る</button></div></>}
-          {panel === "welcome" && <><span className="pochi-eyebrow">おかえりなさい</span><h2>また、いっしょに。</h2><p>少しリフレッシュできたかな？</p><button className="pochi-primary pochi-full" onClick={controller.continueWork}>作業を続ける</button></>}
-          {panel === "recovery" && <><h2>前回の記録が残っているよ。</h2><p>閉じていた間の時間は含めていません。続きを始める？</p><div className="pochi-actions"><button className="pochi-primary" onClick={controller.resume} disabled={failed}>前回の作業を続ける</button><button onClick={() => controller.end()} disabled={failed}>終了して記録を見る</button></div></>}
-          {panel === "report" && <><span className="pochi-eyebrow">作業のふりかえり</span><h2>作業と休憩の記録</h2>{reports.length === 0 ? <p>まだ記録はありません。ポチと作業を始めてみよう。</p> : reports.map(s => <SessionReport key={s.id} session={s} />)}<div className="pochi-actions"><button onClick={controller.closePanel}>もどる</button>{active && <button onClick={() => controller.end()} disabled={failed}>作業を終えて保存</button>}{view.closing && isDesktop && <button className="pochi-primary" disabled={failed} onClick={() => { if (controller.checkpoint()) void desktop.close().catch(() => setNativeError("ウィンドウを閉じられませんでした。")); }}>保存してアプリを閉じる</button>}</div></>}
+        <div className={`pochi-bubble ${reportOpen ? "pochi-bubble--report" : ""}`} aria-label="ポチのメニュー">
+          <span className="pochi-pill">{state.connection === "connected" ? profile === "demo" ? `短縮デモ · ${manual ? "手動顔入力" : "実カメラ"}` : "接続済み" : state.connection === "connecting" ? "接続中" : "接続できません"}</span>
+          {state.connection === "error" && !state.error && <button onClick={() => { void actions.reconnect(); }}>再接続</button>}
+          {state.error && <div role="alert" className="pochi-alert">{state.error.message}<div className="pochi-actions"><button onClick={actions.dismissError}>閉じる</button>{state.connection === "error" && <button onClick={() => { void actions.reconnect(); }}>再接続</button>}</div></div>}
+          {snapshot?.warning && <p role="alert" className="pochi-alert">{snapshot.warning.message}</p>}
+          {state.pet.greeting && <p role="status">{state.pet.greeting}</p>}
+          {state.bubble && <section aria-label="休憩のお知らせ" className="pochi-alert" data-emphasis={state.bubble.emphasis}>
+            <span className="pochi-eyebrow">ひと息の時間</span><h2>少し立って、<br />休憩しない？</h2><p>{state.bubble.text}</p>
+            <p className="pochi-muted">「はい」でここまでの作業レポートを作成するよ。</p>
+            <div className="pochi-actions"><button className="pochi-primary" disabled={busy || state.bubble.disabled} onClick={() => { void actions.answer("yes"); }}>{state.bubble.yesLabel}</button><button disabled={busy || state.bubble.disabled} onClick={() => { void actions.answer("no"); }}>{state.bubble.noLabel}</button></div>
+          </section>}
+          {generating && <p role="status">ここまでのレポートを作成しているよ…</p>}
+          {snapshot?.jobs.some(job => job.status === "scheduled") && <p role="status">離席のレポートを予約しています。帰席しても予約は続きます。</p>}
+          <ReportPanel state={state.report} queuedCount={state.queuedReportCount} busy={busy || !running} onClose={actions.closeReport} onRetry={retry} />
+          {panel === "settings" && settings ? <>
+            <SettingsPanel key={`${snapshot?.runtimeId}-${settings.revision}`} settings={settings} disabled={busy || running} onSave={actions.saveSettings} />
+            {desktop && <label className="pochi-check"><input type="checkbox" checked={pinned} onChange={event => {
+              const value = event.target.checked; setPinned(value); void actions.pinWindow(value);
+            }} />ほかのウィンドウより手前に表示</label>}
+            <button onClick={() => setPanel("home")}>もどる</button>
+            <button disabled={busy} onClick={() => { if (window.confirm("監視を停止し、履歴とレポートをすべて削除しますか？")) void actions.clearData(); }}>履歴とレポートを削除</button>
+          </> : panel === "history" ? <section aria-label="保存したレポート"><h2>作業のふりかえり</h2>
+            {state.reportListLoading && <p role="status">読み込み中…</p>}
+            {!state.reportListLoading && !state.reportList.length && <p>まだレポートはありません。</p>}
+            <ul>{state.reportList.map(report => <li key={report.id}><button onClick={() => { void actions.openReport(report.id); }}>{new Date(report.createdAt).toLocaleString("ja-JP")} · {report.status}</button></li>)}</ul>
+            <div className="pochi-actions"><button disabled={busy} onClick={() => { void actions.refreshReports(); }}>一覧を更新</button><button onClick={() => setPanel("home")}>もどる</button></div>
+          </section> : !running && !reportOpen && <>
+            <span className="pochi-eyebrow">こんにちは</span><h2>今日も、いっしょに。</h2>
+            {panel === "start" && snapshot ? <section aria-label="監視の開始">
+              <label className="pochi-check"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />{manual ? "手動の顔入力" : "カメラの顔の有無"}・PC 情報で在席を計測し、マスク済みの作業履歴を記録する</label>
+              {usesAi ? <label className="pochi-check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />Yes の直後と離席確定の{profile === "demo" ? "5秒" : "5分"}後に、マスク済み履歴を {settings?.provider?.endpoint}（{settings?.provider?.model}）へ送信する</label> : <p className="pochi-muted">端末内で履歴カードを作成します。</p>}
+              <button className="pochi-primary pochi-full" disabled={busy || !consent || (!!usesAi && !externalConsent)} onClick={() => begin(!!usesAi)}>{usesAi ? "AI で開始" : "ローカル履歴で開始"}</button>
+              {usesAi && <button disabled={busy || !consent} onClick={() => begin(false)}>AI 送信せず開始</button>}
+            </section> : <><p>今日は何をしようか？</p><button className="pochi-primary pochi-full" onClick={() => setPanel("start")} disabled={busy}>作業を記録</button></>}
+          </>}
+          {running && !state.bubble && !reportOpen && panel === "home" && <><span className="pochi-eyebrow">作業中</span><h2>ここで、待ってるね。</h2><p>{state.pet.statusText}</p><button onClick={() => { void actions.openLatestReport(); }}>最新のレポートを見る</button></>}
         </div>
-        <div className="pochi-pet-row"><button className="pochi-pet-button" style={{ width: data.settings.petSize, height: data.settings.petSize }} aria-label="ポチ：クリックで作業を記録、ダブルクリックで設定" onClick={e => clickPet(e.detail)} onDoubleClick={() => { if (clickTimer.current) clearTimeout(clickTimer.current); controller.openSettings(); }}><PochiSprite motion={view.motion} reducedMotion={data.settings.reducedMotion || systemReduced} onComplete={controller.completeAnimation} /></button></div>
-        <div className="pochi-status"><span className={`pochi-status-dot ${phase === "resting" ? "is-resting" : ""}`} /><span>{phase === "resting" ? "休憩中" : phase === "recovered" ? "再開を待っています" : active ? "作業中" : "待機中"}</span><time aria-label="経過時間">{formatDuration(phase === "resting" ? openBreak?.durationMs ?? 0 : active?.workMs ?? 0)}</time></div>
-        <nav className="pochi-toolbar" aria-label="ポチの操作"><button onClick={controller.openSettings}>設定</button><button onClick={controller.openReports}>記録</button><button onClick={controller.turn} disabled={!!active && phase !== "working"}>ひとまわり</button>{isDesktop && <button aria-label="ウィンドウを移動" onPointerDown={() => { void desktop.drag().catch(() => setNativeError("ウィンドウを移動できませんでした。")); }}>移動</button>}<button onClick={() => controller.end(true)}>終了</button></nav>
-        <p className="pochi-hint">クリックで作業 · ダブルクリックで設定{view.paused && " · この画面を離れている間は計時を一時停止"}</p>
+        <div className="pochi-pet-row"><button className="pochi-pet-button" style={{ width: 230, height: 230 }} aria-label="ポチ：クリックで開始・レポート、ダブルクリックで設定" onClick={event => {
+          if (clickTimer.current) clearTimeout(clickTimer.current);
+          if (event.detail > 1) return;
+          if (event.detail === 0) tap(); else clickTimer.current = setTimeout(tap, 550);
+        }} onDoubleClick={() => { if (clickTimer.current) clearTimeout(clickTimer.current); setPanel("settings"); }}><PochiSprite motion={state.motion} reducedMotion={settings?.reducedMotion || systemReduced} onComplete={actions.completeAnimation} /></button></div>
+        <div className="pochi-status" role="status"><span className={`pochi-status-dot ${snapshot?.presence.value === "away" ? "is-resting" : ""}`} /><span>{state.pet.statusText}</span><time aria-label="連続在席時間">{duration(snapshot?.session?.elapsedMs ?? 0)}</time></div>
+        <nav className="pochi-toolbar" aria-label="ポチの操作"><button onClick={() => setPanel("settings")}>設定</button><button onClick={() => { setPanel("history"); void actions.refreshReports(); }}>記録</button><button onClick={actions.turn}>ひとまわり</button>{running && <button disabled={busy} onClick={() => { void actions.stop(); }}>監視を停止</button>}{desktop && <><button aria-label="ウィンドウを移動" onPointerDown={event => { if (event.button === 0) void actions.moveWindow(); }}>移動</button><button disabled={state.pending !== null} onClick={() => { void actions.closeApp(); }}>終了</button></>}</nav>
+        <p className="pochi-hint">クリックで開始・レポート · ダブルクリックで設定</p>
       </div>
     </section>
   </main>;

@@ -1,0 +1,1291 @@
+[
+  {
+    "name": "stopped snapshot",
+    "kind": "snapshot",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "populated snapshot",
+    "kind": "snapshot",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "openAiCompatible",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": {
+          "id": "reminder-1",
+          "sessionId": "session-1",
+          "source": "sitting",
+          "level": "normal",
+          "cause": "boundary",
+          "shownAt": 1792195200000
+        },
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "running",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "failure envelope",
+    "kind": "snapshot",
+    "valid": true,
+    "value": {
+      "ok": false,
+      "error": {
+        "code": "invalidState",
+        "message": "未接続の機能です。",
+        "retryable": false
+      }
+    }
+  },
+  {
+    "name": "ready report",
+    "kind": "report",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "ready",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業"
+            }
+          ]
+        },
+        "content": {
+          "summary": "架空の作業を確認しました。",
+          "observedFacts": [
+            "架空のウィンドウが前面にありました。"
+          ],
+          "nextAction": null
+        },
+        "error": null
+      }
+    }
+  },
+  {
+    "name": "failed report",
+    "kind": "report",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "failed",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業"
+            }
+          ]
+        },
+        "content": null,
+        "error": {
+          "code": "invalidState",
+          "message": "未接続の機能です。",
+          "retryable": false
+        }
+      }
+    }
+  },
+  {
+    "name": "local report",
+    "kind": "report",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "local",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業"
+            }
+          ]
+        },
+        "content": null,
+        "error": null
+      }
+    }
+  },
+  {
+    "name": "report page",
+    "kind": "page",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "items": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "createdAt": 1792195200000,
+            "updatedAt": 1792195200000,
+            "status": "ready"
+          }
+        ],
+        "nextCursor": null
+      }
+    }
+  },
+  {
+    "name": "empty page",
+    "kind": "page",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "items": [],
+        "nextCursor": null
+      }
+    }
+  },
+  {
+    "name": "face receipt",
+    "kind": "faceReceipt",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "acceptedSequence": 1,
+        "snapshotRevision": 0
+      }
+    }
+  },
+  {
+    "name": "reminder response",
+    "kind": "respond",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "snapshot": {
+          "apiVersion": 1,
+          "runtimeId": "fixture-runtime",
+          "revision": 0,
+          "emittedAt": 1792195200000,
+          "runtime": {
+            "phase": "running",
+            "trackingId": "tracking-1",
+            "profile": "normal",
+            "effectiveReportMode": "ai",
+            "camera": "running",
+            "activity": "running",
+            "consent": {
+              "activity": true,
+              "history": true,
+              "externalReport": true
+            }
+          },
+          "settings": {
+            "reportMode": "ai",
+            "provider": {
+              "kind": "openAiCompatible",
+              "endpoint": "https://example.invalid/api",
+              "model": "fixture"
+            },
+            "excludedApps": [],
+            "reducedMotion": false,
+            "revision": 0,
+            "hasApiKey": true
+          },
+          "presence": {
+            "value": "present",
+            "reason": "stableFace",
+            "faceMissingSince": null,
+            "awayDetectedAt": null
+          },
+          "session": {
+            "id": "session-1",
+            "startedAt": 1792193400000,
+            "endedAt": null,
+            "endReason": null,
+            "elapsedMs": 1800000,
+            "reportJobId": "report-1"
+          },
+          "reminder": {
+            "id": "reminder-1",
+            "sessionId": "session-1",
+            "source": "sitting",
+            "level": "normal",
+            "cause": "boundary",
+            "shownAt": 1792195200000
+          },
+          "jobs": [
+            {
+              "id": "report-1",
+              "sessionId": "session-1",
+              "trigger": "yes",
+              "requestedAt": 1792195200000,
+              "dueAt": 1792195200000,
+              "status": "running",
+              "attempt": 1,
+              "completionSeq": null
+            }
+          ],
+          "completionSeq": 0,
+          "warning": null
+        },
+        "reportId": "report-1"
+      }
+    }
+  },
+  {
+    "name": "face sample",
+    "kind": "faceInput",
+    "valid": true,
+    "value": {
+      "trackingId": "tracking-1",
+      "sequence": 1,
+      "observedAt": 1792195200000,
+      "source": "camera",
+      "kind": "sample",
+      "faceDetected": true
+    }
+  },
+  {
+    "name": "face unavailable",
+    "kind": "faceInput",
+    "valid": true,
+    "value": {
+      "trackingId": "tracking-1",
+      "sequence": 2,
+      "observedAt": 1792195200000,
+      "source": "manual",
+      "kind": "unavailable",
+      "reason": "deviceError"
+    }
+  },
+  {
+    "name": "missing nullable property",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0
+      }
+    }
+  },
+  {
+    "name": "unsupported API version",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 2,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "negative revision",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": -1,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "fractional timestamp",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1.5,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "unsafe integer",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 9007199254740992,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "unknown runtime phase",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "future",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "unknown property",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null,
+        "extra": true
+      }
+    }
+  },
+  {
+    "name": "null runtime",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": null,
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "empty id",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "wrong boolean",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": "false"
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "missing nested nullable",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "unknown provider",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "future",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": {
+          "id": "reminder-1",
+          "sessionId": "session-1",
+          "source": "sitting",
+          "level": "normal",
+          "cause": "boundary",
+          "shownAt": 1792195200000
+        },
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "running",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "unknown job status",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "openAiCompatible",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": {
+          "id": "reminder-1",
+          "sessionId": "session-1",
+          "source": "sitting",
+          "level": "normal",
+          "cause": "boundary",
+          "shownAt": 1792195200000
+        },
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "future",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "bad envelope flag",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": "true",
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "null success data",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": null
+    }
+  },
+  {
+    "name": "both result branches",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "stopped",
+          "trackingId": null,
+          "profile": "normal",
+          "effectiveReportMode": "local",
+          "camera": "off",
+          "activity": "off",
+          "consent": {
+            "activity": false,
+            "history": false,
+            "externalReport": false
+          }
+        },
+        "settings": {
+          "reportMode": "local",
+          "provider": null,
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": false
+        },
+        "presence": {
+          "value": "unknown",
+          "reason": "sensorUnavailable",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": null,
+        "reminder": null,
+        "jobs": [],
+        "completionSeq": 0,
+        "warning": null
+      },
+      "error": {
+        "code": "invalidState",
+        "message": "未接続の機能です。",
+        "retryable": false
+      }
+    }
+  },
+  {
+    "name": "unknown error code",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": false,
+      "error": {
+        "code": "future",
+        "message": "未接続の機能です。",
+        "retryable": false
+      }
+    }
+  },
+  {
+    "name": "missing report content",
+    "kind": "report",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "ready",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業"
+            }
+          ]
+        },
+        "error": null
+      }
+    }
+  },
+  {
+    "name": "unsafe report interval",
+    "kind": "report",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "ready",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 9007199254740992,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業"
+            }
+          ]
+        },
+        "content": {
+          "summary": "架空の作業を確認しました。",
+          "observedFacts": [
+            "架空のウィンドウが前面にありました。"
+          ],
+          "nextAction": null
+        },
+        "error": null
+      }
+    }
+  },
+  {
+    "name": "missing page cursor",
+    "kind": "page",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "items": []
+      }
+    }
+  },
+  {
+    "name": "unknown face kind",
+    "kind": "faceInput",
+    "valid": false,
+    "value": {
+      "trackingId": "tracking-1",
+      "sequence": 1,
+      "observedAt": 1792195200000,
+      "source": "camera",
+      "kind": "image",
+      "faceDetected": true
+    }
+  },
+  {
+    "name": "missing face boolean",
+    "kind": "faceInput",
+    "valid": false,
+    "value": {
+      "trackingId": "tracking-1",
+      "sequence": 1,
+      "observedAt": 1792195200000,
+      "source": "camera",
+      "kind": "sample"
+    }
+  },
+  {
+    "name": "wrong face branch",
+    "kind": "faceInput",
+    "valid": false,
+    "value": {
+      "trackingId": "tracking-1",
+      "sequence": 2,
+      "observedAt": 1792195200000,
+      "source": "manual",
+      "kind": "unavailable",
+      "reason": "deviceError",
+      "faceDetected": false
+    }
+  }
+]

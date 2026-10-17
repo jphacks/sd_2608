@@ -1,12 +1,19 @@
 import { lazy, Suspense } from "react";
+import { isTauri } from "@tauri-apps/api/core";
 import "./App.css";
-import PochiApp from "./pochi/PochiApp.js";
 
-// The existing sensor/AI workbench remains development-only. The default is the real manual workflow.
+// dev:mock 以外ではモックをロードしない。実 Gateway の接続はロジック担当が行う。
 const MockWorkbench = import.meta.env.DEV && import.meta.env.MODE === "mock"
   ? lazy(() => import("./dev/MockWorkbench.js")) : null;
+const RuntimeApp = lazy(() => import("./application/RuntimeApp.js"));
 
 export default function App() {
   if (MockWorkbench) return <Suspense fallback={<p>表示開発環境を読み込んでいます…</p>}><MockWorkbench /></Suspense>;
-  return <PochiApp />;
+  if (isTauri()) return <Suspense fallback={<p>アプリへ接続しています…</p>}><RuntimeApp /></Suspense>;
+  return <main className="setup-notice">
+    <h1>休憩のおとも</h1>
+    <p>実アプリへの接続には Tauri での起動が必要です。</p>
+    <p><code>npm run tauri dev</code> でポチを起動できます。</p>
+    {import.meta.env.DEV && <p>表示開発は <code>npm run dev:mock</code> で起動してください。</p>}
+  </main>;
 }

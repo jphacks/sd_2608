@@ -4,25 +4,37 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "assets:prepare": "node scripts/prepare-vision-assets.mjs",
+    "postinstall": "npm run assets:prepare",
+    "predev": "npm run assets:prepare",
+    "predev:mock": "npm run assets:prepare",
+    "predev:demo": "npm run assets:prepare",
+    "prebuild": "npm run assets:prepare",
     "dev": "vite",
     "dev:mock": "vite --mode mock",
+    "dev:demo": "vite --mode demo",
+    "build:demo": "npm run assets:prepare && tsc && vite build --mode demo",
+    "desktop:demo": "tauri dev --config src-tauri/tauri.demo.conf.json",
+    "desktop:build": "tauri build --no-bundle",
+    "desktop:build:demo": "tauri build --no-bundle --config src-tauri/tauri.demo.conf.json",
     "test": "node scripts/test.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@mediapipe/tasks-vision": "0.10.35",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16",
-    "@tauri-apps/cli": "^2"
+    "vite": "^8.0.16"
   }
 }

@@ -1,8 +1,16 @@
 # 型・データモデル設計
 
-作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust の DTO は未実装で、同じ構造を Serde で表現する。
+作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。在席・通知は B-04、履歴・設定・保存は B-05 で接続済み。
+
+B-02 の Rust 内部入力は [`ports/activity.rs`](../src-tauri/src/ports/activity.rs) に分離した。内部の ActivitySample は UTC の取得時刻と単調時計の経過値を持ち、Serialize を実装しない。ウィンドウ情報を AppSnapshot へ追加せず、通常 UI・ログへの露出を避ける。[取得・消去の詳細](backend-pc-activity.md) を参照。
+
+B-03 は既存 FaceInput / FaceReceipt を使い、内部の FaceObservation / FaceIngress を [`application/face_input.rs`](../src-tauri/src/application/face_input.rs) に実装した。映像・座標を受け取らず、boolean・source・取得時刻と内部の鮮度情報だけを保持する。[受付・再送・失効の規則](backend-face-detection.md) を参照。
+
+B-04 は FaceObservation に内部の sequence を追加した。Domain は独立した Time・Face・Activity・Session・Reminder・DomainEvent を持ち、Wire DTO へ直接依存しない。変換は [`application/app_service/sitting.rs`](../src-tauri/src/application/app_service/sitting.rs) に集めた。共通の通信型・JSON は変更していない。[判定とイベントの詳細](backend-presence-reminder.md) を参照。
 
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
+
+B-07では内部の`report_coordinator::Input`に秘密の保存IDを追加した。設定revision・同意・モード・履歴と一緒に固定し、平文キーは実行時だけ復号する。HTTP本文へはアプリ名・マスク済みタイトル・区間時刻・対象期間だけを渡す。共有DTOや保存JSONのスキーマは変更していない。[AIの固定入力・再試行](backend-ai-provider.md) を参照。
 
 ## 1. 共通ルール
 
@@ -260,5 +268,9 @@ erDiagram
 | GIF manifest | アプリ資産として Git 管理。各素材の時間・利用条件・出典も管理 |
 
 JSON は `{ schemaVersion: 1, ... }` で包み、一時ファイルへの書き込み後に置き換える。未知バージョン・破損を検出したら自動送信せず停止状態で起動し、元ファイルを保全して案内する。全データ削除は実行世代を進めてからメモリー・保存物を消し、進行中の処理による復活を防ぐ。
+
+B-05 の保存形式は `settings.json: { schemaVersion, revision, values: SettingsInput, secretId: Id | null }` と `reports.json: { schemaVersion, reports: Report[] }`。secretId は `secrets/<ID>.bin` の DPAPI 暗号文への参照で、キー本文ではない。生タイトルは履歴に入れず、原文の一致確認にはプロセス内だけのランダム化した指紋を使う。離席確定待ちには顔欠落開始時点の固定コピーを一つ保持し、通常の30分バッファが進んでも離席開始直前の区間を失わない。詳細は [B-05 メモ](backend-history-storage.md)。
+
+B-06 の内部 Job は単調時計の期限・実行世代・試行番号を持ち、固定履歴・設定 revision・同意・モードを Coordinator が対応付ける。Wire の型は変更しない。ローカル完成は job:ready / report:local。保存失敗の failed カードは通常の保存配列へ混ぜず、メモリー上の一覧・取得へ重ねる。未実行予約やこの一時カードは再起動で復元しない。completionSeq は削除をまたいでも同一 runtime 内で減らさない。詳細は [B-06 メモ](backend-report-coordinator.md)。
 
 将来の日次記録は別ファイル・別 schema とする。現在のレポート保存を「毎日の記録」機能と同一視しない。

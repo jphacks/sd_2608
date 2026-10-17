@@ -2,6 +2,8 @@
 
 作成日：2026-10-17。2人での並行開発と、Windows 実機での早期統合を前提とする。構成・API・機能の詳細は [アーキテクチャ](architecture.md)、[API 設計](api-design.md)、[機能仕様](requirements.md) を参照。
 
+B の実装では [B担当の詳細計画](backend-development-plan.md) のブランチ運用を適用する。B の各機能は `develop/backend` から分岐し、同ブランチ向けに統合する。全体への共有時に `develop/backend` から `main` へ取り込む。
+
 ## 1. 現在の環境と、これから整えるもの
 
 | 項目 | 現状・方針 |
@@ -12,7 +14,7 @@
 | OS | 統合・デモは Windows。Windows 11 x64 をチームの基準環境とする案 |
 | 依存固定 | `package-lock.json` と `src-tauri/Cargo.lock` を共有。通常の取得は `npm ci` |
 | 現在使える npm コマンド | `dev`、`dev:mock`、`test`、`build`、`preview`、`tauri` |
-| 未整備 | 実 Gateway・顔モデル資産準備・本番ロジック、CI、Node / Rust 版固定 |
+| 未整備 | 顔モデル資産準備・センサー・本番の判定と生成、CI、Node / Rust 版固定 |
 
 上記はこの端末の確認値で、2人の環境での動作確認を保証するものではない。最初に両端末で起動・ビルドを確認し、問題がなければ `.node-version` に `22.12.0`、`rust-toolchain.toml` に `1.99.0` を固定する。採用版を変える場合は2人で確認し、CI も同時に更新する。
 
@@ -39,7 +41,7 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。現在、通常起動は未接続の案内画面。UI は `npm run dev:mock` で開発でき、カメラ・本番通知・本番レポートは未接続。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri は実 IPC で停止状態を表示し、同意後に PC 情報と顔の有無から在席・休憩通知を判定する（[B-04 メモ](backend-presence-reminder.md)）。B-05 で履歴・保存を、B-06 でローカル生成・離席5分予約を接続した（[B-06 の検証](backend-report-coordinator.md)）。開発用の手動顔入力は demo の短縮時間を使い、予約は5秒。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発できる。B-07でAIも接続済み。利用時は停止中に接続先・モデル・APIキーを保存し、開始時に表示された送信先への同意を選ぶ。[接続形式と検証範囲](backend-ai-provider.md) を参照。
 
 ## 3. 並行開発用に追加する環境
 
@@ -49,7 +51,7 @@ npm run tauri dev
 |---|---|
 | `npm run dev:mock` | 実装済み。`vite --mode mock`。カメラ・Rust・実 API なしで UI を開く |
 | `npm test` | 実装済み。TypeScript の型検査と Node 標準テスト。コントローラー・モックの競合と状態遷移を確認。GIF 演出はブラウザーで確認 |
-| 顔モデルの準備 | 未実装。プロトタイプから MediaPipe の依存・モデル・ライセンスを移植し、対応 WASM のコピー処理を追加 |
+| 顔モデルの準備 | B-03 で実装済み。固定モデル・ライセンスを格納し、npm ci / dev / build で対応 WASM をコピー。手動実行は npm run assets:prepare |
 | 共通フィクスチャー | 実装済み。`src/contracts/fixtures.ts` と MockGateway の15シナリオ |
 | Windows CI | 未実装。フロント・Rust のテストとビルド。実 API キーやカメラを要求しない |
 | 表示資産 | manifest とお座り／伏せの仮 SVG を実装済み。完成 GIF と連続演出は表示担当が作成 |

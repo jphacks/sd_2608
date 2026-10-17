@@ -2,9 +2,25 @@
 
 作成日：2026-10-17。**実装に向けた設計であり、現在の `sd_2608` に実装済みという意味ではない。** 要求の正本は [機能要件・仕様](requirements.md)、通信契約は [API 設計](api-design.md)、型の正本は [型・データモデル](data-model.md) とする。
 
-先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。実センサー・Rust Domain・AI・保存は未接続。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。
+先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。Windows の PC 取得は B-02、顔入力は B-03、Rust の在席・通知 Domain は B-04、履歴・設定・保存は B-05、ローカル生成・予約は B-06、AI通信は B-07 で接続済み。
+
+B-01 で AppService の初期状態、Rust IPC、TauriGateway、応答検証と実アプリの表示接続を追加した。実装済みの範囲と未接続コマンドの動作は [B-01 メモ](backend-runtime-contract.md) を参照。
+
+B-02 で ActivitySource、Windows アダプター、単一ワーカーを追加した。内部の PC 入力は通常の snapshot と分け、停止・世代切替で破棄する。[B-02 メモ](backend-pc-activity.md) を参照。
+
+B-03 で FaceCapture、カメラアダプター、Rust の FaceIngress を追加した。カメラと送信の寿命は Gateway が、受付済み入力の鮮度は Rust が管理する。映像・検出座標は WebView 内で破棄する。[B-03 メモ](backend-face-detection.md) を参照。
+
+B-04 で `domain/{presence,session,boundary,reminder,timings,event}.rs` を追加した。Domain は時刻と正規化した入力だけを扱い、Wire DTO との変換は `application/app_service/sitting.rs` に置く。[B-04 メモ](backend-presence-reminder.md) を参照。
+
+B-05 で `domain/history.rs`、`application/privacy.rs`、`application/persistence.rs` と Repository / SecretStore ポートを追加した。JSON と DPAPI の実装は `infrastructure/storage/` に置き、起動時は設定と保存済みカードだけを復元する。[B-05 メモ](backend-history-storage.md) を参照。
+
+B-06 で `domain/report.rs`、`application/report_coordinator.rs`、`application/app_service/reports.rs` を追加した。Domain は一意性・期限・優先順・試行、Coordinator は固定入力、単一ワーカーはローカル生成・保存を担当する。状態と Persistence のロックを分離し、I/O 中の停止・世代切替を検出する。完成カードの参照先を確定した後に completionSeq を発行する。[B-06 メモ](backend-report-coordinator.md) を参照。
+
+B-07でReportProviderとHTTPアダプターを追加した。ワーカーは固定入力と秘密の保存IDを使い、復号後は保存ロックを解放して通信する。現在の実行世代を確認し、取消後の完了を破棄する。Domainや表示用Propsには通信仕様を追加しない。[B-07 メモ](backend-ai-provider.md) を参照。
 
 ## 1. 構成と責務
+
+B-08／B-09 で A の PochiApp を既存 AppController／AppGateway に統合した。独立した手動計時・localStorage・PochiController は廃止し、通知とレポートの正規状態は Rust に保持する。演出のきっかけと表示キューは AppController、実際のアトラス再生は PochiSprite が担当する。WindowAdapter は AppGateway の任意の window ポートに注入する。[統合・デモの記録](backend-integration.md) を参照。
 
 Tauri 2 + React + TypeScript + Rust を使用する。顔検出は WebView 内、PC 情報取得・判定・予約・保存・AI 通信は Rust に置く。**時間判定とレポート予約の実行主体を Rust に集め、画面の開閉・GIF の再生から独立させる。**
 
@@ -83,7 +99,7 @@ Rust の `AppService` が正規状態を1つ所有する。通常は1秒周期�
 
 起動 → Gateway 接続・状態取得 → 登場 GIF → 開始操作 → Rust の監視開始 → カメラ開始・顔サンプル送信。カメラ未許可・開始失敗なら `unknown` を表示し、在席通知は始めない。アプリを開いただけでは取得・保存・外部送信を開始しない。
 
-顔の映像は TS の FaceAdapter 内で完結させ、Rust へは boolean・取得時刻・連番・取得元のみ渡す。PC 情報は Rust から取得する。画面を閉じても監視とレポート予約は動作を続ける。
+顔の映像は TS の FaceAdapter 内で完結させ、Rust へは boolean・取得時刻・連番・取得元のみ渡す。PC 情報は Rust から取得する。設定・カードを閉じても監視とレポート予約は動作を続ける。アプリ終了・WebView の再読込では監視と未完了ジョブを停止する。
 
 ### Yes と自然離席
 
