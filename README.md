@@ -5,8 +5,8 @@
 表示担当は `npm ci` → `npm run dev:mock` で、実センサー・API なしの開発画面を開けます。
 共通型・操作の接続口・phase3 までのシナリオ・GIF の差し替え方法は、[表示開発ガイド](docs/ui-development.md) を参照してください。
 確認コマンドは `npm test` と `npm run build` です。
-`npm run tauri dev` では、同意して開始すると Windows の PC 情報取得が動きます。顔検出・在席判定・通知・レポート生成は未接続です。
-[B-01 の接続基盤](docs/backend-runtime-contract.md) / [B-02 のPC情報取得・検証メモ](docs/backend-pc-activity.md)
+`npm run tauri dev` では、同意して開始すると Windows の PC 情報取得とカメラの顔検出が動きます。モデル・WASM は同梱します。在席判定・通知・レポート生成は後続作業です。
+[B-01 の接続基盤](docs/backend-runtime-contract.md) / [B-02 のPC情報取得](docs/backend-pc-activity.md) / [B-03 の顔検出・検証メモ](docs/backend-face-detection.md)
 
 [開発計画・設計書](docs/development-plan.md)
 

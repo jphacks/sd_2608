@@ -4,6 +4,8 @@
 
 B-02 の Rust 内部入力は [`ports/activity.rs`](../src-tauri/src/ports/activity.rs) に分離した。内部の ActivitySample は UTC の取得時刻と単調時計の経過値を持ち、Serialize を実装しない。ウィンドウ情報を AppSnapshot へ追加せず、通常 UI・ログへの露出を避ける。[取得・消去の詳細](backend-pc-activity.md) を参照。
 
+B-03 は既存 FaceInput / FaceReceipt を使い、内部の FaceObservation / FaceIngress を [`application/face_input.rs`](../src-tauri/src/application/face_input.rs) に実装した。映像・座標を受け取らず、boolean・source・取得時刻と内部の鮮度情報だけを保持する。[受付・再送・失効の規則](backend-face-detection.md) を参照。
+
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 
 ## 1. 共通ルール

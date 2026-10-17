@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：B-01 の Rust DTO・10コマンド・TauriGateway・応答検証に加え、B-02 で Windows の PC 取得と開始・停止を接続した。現段階の runtime_start はローカルモードの PC 取得のみで、camera=off、presence=unknown と未接続機能の説明を返す。顔検出・判定・保存・生成は後続作業。詳細は [B-01 メモ](backend-runtime-contract.md)・[B-02 メモ](backend-pc-activity.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
+実装状況：B-01 の通信基盤、B-02 の PC 取得、B-03 の顔検出と入力受付を実装済み。runtime_start の成功後にカメラを開始し、camera=waiting / running / error を更新する。presence は unknown のままで、判定・保存・生成は後続作業。詳細は [B-01 メモ](backend-runtime-contract.md)・[B-02 メモ](backend-pc-activity.md)・[B-03 メモ](backend-face-detection.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 
@@ -88,6 +88,7 @@ export type RetryReportRequest = {
 - 有効な開始要求で既に監視中なら、同一 requestId の再送以外は `invalidState`。新たに計測を始め直すには停止する。
 - `face_submit` は1秒周期、同時送信は1件まで。sequence が前回以下の同一サンプルは受領済みとして返し、再評価しない。時刻や内容が矛盾する再送は拒否する。新規サンプルは5秒以内、未来へのずれは2秒以内を許容し、遅すぎる入力は計測に使わない。
 - `source: manual` は demo プロファイルだけに許可し、画面に手動テストと明示する。
+- B-03 の顔入力受付結果は最新1,000件を保持する。キャッシュ外の古い連番や、同じ trackingId 内で source を変えた新規入力は validation。再送で入力の鮮度を延ばさない。
 - `reminder_respond` は失効した通知へ `staleReminder`。同じ要求の再送は成功結果を返すが、別要求で回答済み通知へ回答し直せない。
 - `settings_update` はキーを応答へ返さず `hasApiKey` のみ返す。Provider の形式・接続先変更時は旧キーを流用せず、新規キー登録が必要。設定変更で送信同意は引き継がない。
 - `report_list` の limit は1〜20。cursor は不透明なページ位置。削除後の古い cursor は再取得を案内する。
