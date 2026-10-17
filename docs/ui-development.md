@@ -101,8 +101,8 @@ npm run build
 
 ## 6. ロジック担当が後で接続する範囲
 
-TauriGateway と Rust の AppService は B-01、Windows の PC 取得は B-02、顔検出と入力受付は B-03 で接続済み。判定・レポート予約・AI Provider・保存は後続の実装。開始後は camera=waiting / running / error と入力の案内、presence=unknown を表示する。開発用の手動顔入力は RuntimeApp に置き、A の Props は変更していない。`useAppController(realGateway)` と既存 AppView の接続を維持して進める。IPC のコマンド表は `src/contracts/ipc.ts`、通信 DTO は `src/contracts/domain.ts` と `api.ts` にある。
+TauriGateway と Rust の AppService は B-01、Windows の PC 取得は B-02、顔入力は B-03、在席・区切り・通知と回答は B-04 で接続済み。presence・session・reminder が実入力から更新される。開発用の手動顔入力は RuntimeApp に置き、A の Props は変更していない。Yes は現段階では回答受付と未生成の案内までで、レポート予約・AI Provider・保存は後続作業。`useAppController(realGateway)` と既存 AppView の接続を維持して進める。IPC のコマンド表は `src/contracts/ipc.ts`、通信 DTO は `src/contracts/domain.ts` と `api.ts` にある。
 
 実 Gateway はイベント購読・再同期・応答検証・カメラ解放を所有する。コントローラーは古い revision と旧接続の応答を破棄し、初回接続で過去カードを自動表示せず、新しい完成カードを表示キューへ入れる。契約を変更したらモックとこの資料も同じ変更で更新する。
 
-型・モック・表示用コントローラー、[B-01 の接続基盤](backend-runtime-contract.md)、[B-02 のPC情報取得](backend-pc-activity.md)、[B-03 の顔検出](backend-face-detection.md) を実装済み。通知判定・生成や完成した UI は後続作業。姿勢・日次記録は今回の契約へ混ぜず、[アーキテクチャ](architecture.md) の独立モジュールとして後から追加する。
+型・モック・表示用コントローラー、[B-01 の接続基盤](backend-runtime-contract.md)、[B-02 のPC情報取得](backend-pc-activity.md)、[B-03 の顔検出](backend-face-detection.md)、[B-04 の在席・通知](backend-presence-reminder.md) を実装済み。レポート生成・保存や完成した UI は後続作業。帰席は away → uncertain → present の安定化を経ても一度だけあいさつする。姿勢・日次記録は今回の契約へ混ぜず、[アーキテクチャ](architecture.md) の独立モジュールとして後から追加する。

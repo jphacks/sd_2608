@@ -1,10 +1,12 @@
 # 型・データモデル設計
 
-作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。Domain の判定処理と保存は後続作業。
+作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。在席・通知 Domain は B-04 で接続済み。保存は後続作業。
 
 B-02 の Rust 内部入力は [`ports/activity.rs`](../src-tauri/src/ports/activity.rs) に分離した。内部の ActivitySample は UTC の取得時刻と単調時計の経過値を持ち、Serialize を実装しない。ウィンドウ情報を AppSnapshot へ追加せず、通常 UI・ログへの露出を避ける。[取得・消去の詳細](backend-pc-activity.md) を参照。
 
 B-03 は既存 FaceInput / FaceReceipt を使い、内部の FaceObservation / FaceIngress を [`application/face_input.rs`](../src-tauri/src/application/face_input.rs) に実装した。映像・座標を受け取らず、boolean・source・取得時刻と内部の鮮度情報だけを保持する。[受付・再送・失効の規則](backend-face-detection.md) を参照。
+
+B-04 は FaceObservation に内部の sequence を追加した。Domain は独立した Time・Face・Activity・Session・Reminder・DomainEvent を持ち、Wire DTO へ直接依存しない。変換は [`application/app_service/sitting.rs`](../src-tauri/src/application/app_service/sitting.rs) に集めた。共通の通信型・JSON は変更していない。[判定とイベントの詳細](backend-presence-reminder.md) を参照。
 
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 

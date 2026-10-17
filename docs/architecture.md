@@ -2,13 +2,15 @@
 
 作成日：2026-10-17。**実装に向けた設計であり、現在の `sd_2608` に実装済みという意味ではない。** 要求の正本は [機能要件・仕様](requirements.md)、通信契約は [API 設計](api-design.md)、型の正本は [型・データモデル](data-model.md) とする。
 
-先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。Windows の PC 取得は B-02、顔検出と入力受付は B-03 で接続済み。Rust Domain・AI・保存は後続作業。
+先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。Windows の PC 取得は B-02、顔入力は B-03、Rust の在席・通知 Domain は B-04 で接続済み。AI・履歴・保存は後続作業。
 
 B-01 で AppService の初期状態、Rust IPC、TauriGateway、応答検証と実アプリの表示接続を追加した。実装済みの範囲と未接続コマンドの動作は [B-01 メモ](backend-runtime-contract.md) を参照。
 
 B-02 で ActivitySource、Windows アダプター、単一ワーカーを追加した。内部の PC 入力は通常の snapshot と分け、停止・世代切替で破棄する。[B-02 メモ](backend-pc-activity.md) を参照。
 
 B-03 で FaceCapture、カメラアダプター、Rust の FaceIngress を追加した。カメラと送信の寿命は Gateway が、受付済み入力の鮮度は Rust が管理する。映像・検出座標は WebView 内で破棄する。[B-03 メモ](backend-face-detection.md) を参照。
+
+B-04 で `domain/{presence,session,boundary,reminder,timings,event}.rs` を追加した。Domain は時刻と正規化した入力だけを扱い、Wire DTO との変換は `application/app_service/sitting.rs` に置く。セッション・レポート要求のイベント処理へ B-05／06 を接続する。[B-04 メモ](backend-presence-reminder.md) を参照。
 
 ## 1. 構成と責務
 
