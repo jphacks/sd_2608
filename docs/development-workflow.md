@@ -2,6 +2,8 @@
 
 作成日：2026-10-17。2人での並行開発と、Windows 実機での早期統合を前提とする。構成・API・機能の詳細は [アーキテクチャ](architecture.md)、[API 設計](api-design.md)、[機能仕様](requirements.md) を参照。
 
+B の実装では [B担当の詳細計画](backend-development-plan.md) のブランチ運用を適用する。B の各機能は `develop/backend` から分岐し、同ブランチ向けに統合する。全体への共有時に `develop/backend` から `main` へ取り込む。
+
 ## 1. 現在の環境と、これから整えるもの
 
 | 項目 | 現状・方針 |
