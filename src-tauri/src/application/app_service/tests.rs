@@ -6,7 +6,7 @@ impl Clock for FakeClock {
     fn read(&self) -> ClockReading {
         ClockReading {
             utc_ms: self.0.load(Ordering::Relaxed),
-            elapsed_ms: 0,
+            elapsed_ms: self.0.load(Ordering::Relaxed),
         }
     }
 }
@@ -112,11 +112,11 @@ fn only_main_window_can_access_any_command_even_with_bad_requests() {
 #[test]
 fn unavailable_features_validate_requests_and_never_fake_success() {
     let (service, _) = service();
-    let start = json!({"requestId":"start","profile":"normal","expectedSettingsRevision":0,"reportMode":"local",
-        "consent":{"activity":true,"history":true,"externalReport":false}});
+    let start = json!({"requestId":"start","profile":"normal","expectedSettingsRevision":0,"reportMode":"ai",
+        "consent":{"activity":true,"history":true,"externalReport":true}});
     assert_eq!(
         error_code(service.dispatch("main", Command::RuntimeStart, Some(start.clone()))),
-        ErrorCode::InvalidState
+        ErrorCode::ProviderNotConfigured
     );
     let mut stale = start.clone();
     stale["requestId"] = json!("stale-start");
@@ -259,4 +259,228 @@ fn concurrent_repeated_mutations_apply_once_and_cache_is_bounded() {
         );
     }
     assert_eq!(service.state.lock().unwrap().receipts.len(), 1_000);
+}
+
+fn start_request(id: &str) -> Value {
+    json!({"requestId":id,"profile":"normal","expectedSettingsRevision":0,"reportMode":"local",
+        "consent":{"activity":true,"history":true,"externalReport":false}})
+}
+fn external() -> crate::ports::activity::ActivityReading {
+    crate::ports::activity::ActivityReading {
+        idle_ms: Some(90_000),
+        foreground: Foreground::External(crate::ports::activity::WindowInfo {
+            window_id: "window-1".into(),
+            process_id: u32::MAX,
+            app_name: "editor.exe".into(),
+            window_title: "private-document-title".into(),
+        }),
+    }
+}
+
+#[test]
+fn foreground_changes_and_read_failures_clear_private_data_and_never_infer_away() {
+    let (service, clock) = service();
+    let mut state = service.state.lock().unwrap();
+    state.snapshot.settings.excluded_apps = vec!["private.exe".into()];
+    for foreground in [
+        Foreground::Pet,
+        Foreground::Excluded,
+        Foreground::Restricted,
+        Foreground::Unavailable,
+    ] {
+        let sample = ActivitySample {
+            observed_at_ms: clock.read().utc_ms,
+            elapsed_ms: clock.read().elapsed_ms,
+            reading: external(),
+        };
+        apply_activity(&mut state, Ok(sample.clone()));
+        assert!(matches!(
+            state.activity.as_ref().unwrap().reading.foreground,
+            Foreground::External(_)
+        ));
+        let mut next = sample;
+        next.reading.foreground = foreground;
+        apply_activity(&mut state, Ok(next));
+        assert!(!format!("{:?}", state.activity).contains("private-document-title"));
+        assert!(
+            !serde_json::to_string(&state.snapshot)
+                .unwrap()
+                .contains("private-document-title")
+        );
+        assert_eq!(state.snapshot.presence.value, Presence::Unknown);
+        assert!(state.snapshot.session.is_none());
+        assert!(state.snapshot.reminder.is_none());
+    }
+    for name in ["PRIVATE.EXE", "LockApp.EXE"] {
+        let mut sample = ActivitySample {
+            observed_at_ms: 0,
+            elapsed_ms: 0,
+            reading: external(),
+        };
+        if let Foreground::External(window) = &mut sample.reading.foreground {
+            window.app_name = name.into();
+        }
+        apply_activity(&mut state, Ok(sample));
+        assert_eq!(
+            state.activity.as_ref().unwrap().reading.foreground,
+            Foreground::Excluded
+        );
+    }
+    let sample = ActivitySample {
+        observed_at_ms: 0,
+        elapsed_ms: 0,
+        reading: external(),
+    };
+    apply_activity(&mut state, Ok(sample.clone()));
+    apply_activity(&mut state, Err(ActivityError::Unavailable));
+    assert!(state.activity.is_none());
+    assert_eq!(state.snapshot.runtime.activity, ActivityPhase::Error);
+    apply_activity(&mut state, Ok(sample));
+    assert_eq!(state.snapshot.runtime.activity, ActivityPhase::Running);
+    assert_eq!(state.snapshot.presence.value, Presence::Unknown);
+    let mut own = ActivitySample {
+        observed_at_ms: 0,
+        elapsed_ms: 0,
+        reading: external(),
+    };
+    if let Foreground::External(window) = &mut own.reading.foreground {
+        window.process_id = std::process::id();
+    }
+    apply_activity(&mut state, Ok(own));
+    assert_eq!(
+        state.activity.as_ref().unwrap().reading.foreground,
+        Foreground::Pet
+    );
+    let mut missing_idle = ActivitySample {
+        observed_at_ms: 0,
+        elapsed_ms: 0,
+        reading: external(),
+    };
+    missing_idle.reading.idle_ms = None;
+    apply_activity(&mut state, Ok(missing_idle));
+    assert_eq!(state.snapshot.runtime.activity, ActivityPhase::Error);
+    assert_eq!(
+        state.snapshot.presence.reason,
+        PresenceReason::SensorUnavailable
+    );
+}
+
+#[test]
+fn latest_activity_expires_against_monotonic_clock() {
+    let (service, clock) = service();
+    let now = clock.read();
+    service.state.lock().unwrap().activity = Some(ActivitySample {
+        observed_at_ms: now.utc_ms,
+        elapsed_ms: now.elapsed_ms,
+        reading: external(),
+    });
+    assert!(service.latest_activity().is_some());
+    clock.0.fetch_add(MAX_SAMPLE_AGE_MS + 1, Ordering::Relaxed);
+    assert!(service.latest_activity().is_none());
+    assert!(service.state.lock().unwrap().activity.is_none());
+}
+
+#[test]
+fn start_requires_consent_is_idempotent_and_restart_rejects_late_samples_and_old_stop() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+    struct Source {
+        started: mpsc::Sender<()>,
+        results:
+            Mutex<mpsc::Receiver<Result<crate::ports::activity::ActivityReading, ActivityError>>>,
+    }
+    impl ActivitySource for Source {
+        fn read(
+            &self,
+            _: &[String],
+        ) -> Result<crate::ports::activity::ActivityReading, ActivityError> {
+            self.started.send(()).unwrap();
+            self.results
+                .lock()
+                .unwrap()
+                .recv()
+                .unwrap_or(Err(ActivityError::Unavailable))
+        }
+    }
+    let (began, reads) = mpsc::channel();
+    let (send, results) = mpsc::channel();
+    let (events, received) = mpsc::channel();
+    let clock = Arc::new(FakeClock(AtomicU64::new(1_000)));
+    let service = AppService::with_activity_source(
+        clock,
+        Id::try_from("test".to_string()).unwrap(),
+        Arc::new(Source {
+            started: began,
+            results: Mutex::new(results),
+        }),
+    )
+    .unwrap();
+    let mut denied = start_request("denied");
+    denied["consent"]["activity"] = json!(false);
+    assert_eq!(
+        error_code(service.dispatch("main", Command::RuntimeStart, Some(denied))),
+        ErrorCode::ConsentRequired
+    );
+    assert!(reads.try_recv().is_err());
+    let first = service.dispatch("main", Command::RuntimeStart, Some(start_request("first")));
+    assert!(matches!(first.result, ApiResult::Success(_)));
+    reads.recv_timeout(Duration::from_secs(2)).unwrap();
+    let old = snapshot(&service).runtime.tracking_id.unwrap();
+    assert_eq!(
+        first.result,
+        service
+            .dispatch("main", Command::RuntimeStart, Some(start_request("first")))
+            .result
+    );
+    assert_eq!(
+        error_code(service.dispatch(
+            "main",
+            Command::RuntimeStart,
+            Some(start_request("duplicate"))
+        )),
+        ErrorCode::InvalidState
+    );
+    assert!(service.stop_for_lifecycle().unwrap().is_some());
+    assert!(service.latest_activity().is_none());
+    service.dispatch("main", Command::RuntimeStart, Some(start_request("second")));
+    let current = snapshot(&service).runtime.tracking_id.unwrap();
+    assert_ne!(old, current);
+    service.set_snapshot_publisher(
+        &current,
+        Arc::new(move |snapshot| {
+            let _ = events.send(snapshot.clone());
+        }),
+    );
+    send.send(Ok(external())).unwrap();
+    reads.recv_timeout(Duration::from_secs(2)).unwrap();
+    // 旧 read が戻っても現在の入力・revision に採用されない。
+    assert!(service.latest_activity().is_none());
+    assert!(received.try_recv().is_err());
+    assert_eq!(
+        error_code(service.dispatch(
+            "main",
+            Command::RuntimeStop,
+            Some(json!({"requestId":"old-stop","trackingId":old}))
+        )),
+        ErrorCode::StaleTracking
+    );
+    send.send(Ok(external())).unwrap();
+    let changed = received.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert_eq!(changed.runtime.activity, ActivityPhase::Running);
+    assert_eq!(changed.runtime.camera, CameraPhase::Off);
+    assert_eq!(changed.presence.value, Presence::Unknown);
+    assert!(service.latest_activity().is_some());
+    assert!(
+        !serde_json::to_string(&changed)
+            .unwrap()
+            .contains("private-document-title")
+    );
+    service.dispatch(
+        "main",
+        Command::DataClear,
+        Some(json!({"requestId":"clear"})),
+    );
+    assert!(service.latest_activity().is_none());
+    assert!(service.publisher.lock().unwrap().is_none());
+    assert_eq!(snapshot(&service).runtime.phase, RuntimePhase::Stopped);
 }

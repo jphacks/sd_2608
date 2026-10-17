@@ -10,6 +10,19 @@ fn dispatch<R: Runtime>(
     request: Option<Value>,
 ) -> ApiResult<Value> {
     let outcome = service.dispatch(window.label(), command, request);
+    if command == Command::RuntimeStart && window.label() == "main" {
+        if let ApiResult::Success(value) = &outcome.result {
+            if let Ok(snapshot) = serde_json::from_value::<super::dto::AppSnapshot>(value.clone()) {
+                if let Some(tracking_id) = snapshot.runtime.tracking_id {
+                    let app = window.app_handle().clone();
+                    service.set_snapshot_publisher(
+                        &tracking_id,
+                        std::sync::Arc::new(move |snapshot| events::publish(&app, snapshot)),
+                    );
+                }
+            }
+        }
+    }
     if let Some(snapshot) = outcome.changed {
         events::publish(window.app_handle(), &snapshot);
     }

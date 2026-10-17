@@ -1,4 +1,5 @@
 pub mod application;
+pub mod infrastructure;
 pub mod ipc;
 pub mod ports;
 
@@ -6,8 +7,15 @@ use application::app_service::AppService;
 use tauri::Manager;
 
 pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
+    configure_with_service(builder, AppService::default())
+}
+
+pub fn configure_with_service<R: tauri::Runtime>(
+    builder: tauri::Builder<R>,
+    service: AppService,
+) -> tauri::Builder<R> {
     builder
-        .manage(AppService::default())
+        .manage(service)
         .invoke_handler(tauri::generate_handler![
             ipc::commands::app_get_snapshot,
             ipc::commands::runtime_start,

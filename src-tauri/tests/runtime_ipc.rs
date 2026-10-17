@@ -1,4 +1,16 @@
+use sd_2608_lib::{
+    application::app_service::AppService,
+    ipc::dto::Id,
+    ports::{
+        activity::{ActivityError, ActivityReading, ActivitySource, Foreground},
+        clock::SystemClock,
+    },
+};
 use serde_json::{Value, json};
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 use tauri::{
     WebviewWindow,
     ipc::{CallbackFn, InvokeBody},
@@ -25,7 +37,24 @@ fn invoke(window: &WebviewWindow<MockRuntime>, command: &str, body: Value) -> Va
 
 #[test]
 fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
-    let app = sd_2608_lib::configure(mock_builder())
+    struct Source(Arc<AtomicUsize>);
+    impl ActivitySource for Source {
+        fn read(&self, _: &[String]) -> Result<ActivityReading, ActivityError> {
+            self.0.fetch_add(1, Ordering::Relaxed);
+            Ok(ActivityReading {
+                idle_ms: Some(60_000),
+                foreground: Foreground::Unavailable,
+            })
+        }
+    }
+    let reads = Arc::new(AtomicUsize::new(0));
+    let service = AppService::with_activity_source(
+        Arc::new(SystemClock::default()),
+        Id::try_from("ipc-runtime".to_string()).unwrap(),
+        Arc::new(Source(reads.clone())),
+    )
+    .unwrap();
+    let app = sd_2608_lib::configure_with_service(mock_builder(), service)
         .build(mock_context(noop_assets()))
         .unwrap();
     let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
@@ -57,10 +86,6 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
         1
     );
     let requests = [
-        (
-            "runtime_start",
-            json!({"requestId":"start","profile":"normal","expectedSettingsRevision":0,"reportMode":"local","consent":{"activity":true,"history":true,"externalReport":false}}),
-        ),
         (
             "runtime_stop",
             json!({"requestId":"stop","trackingId":"missing"}),
@@ -97,4 +122,23 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
         invoke(&other, "app_get_snapshot", json!({}))["error"]["code"],
         "permissionDenied"
     );
+    let start = json!({"request":{"requestId":"start","profile":"normal","expectedSettingsRevision":0,"reportMode":"local","consent":{"activity":true,"history":true,"externalReport":false}}});
+    assert_eq!(
+        invoke(&other, "runtime_start", start.clone())["error"]["code"],
+        "permissionDenied"
+    );
+    assert_eq!(reads.load(Ordering::Relaxed), 0);
+    let started = invoke(&main, "runtime_start", start);
+    assert_eq!(started["ok"], true);
+    assert_eq!(started["data"]["runtime"]["phase"], "running");
+    assert_eq!(started["data"]["runtime"]["camera"], "off");
+    assert_eq!(started["data"]["presence"]["value"], "unknown");
+    let stopped = invoke(
+        &main,
+        "runtime_stop",
+        json!({"request":{"requestId":"stop-current","trackingId":started["data"]["runtime"]["trackingId"]}}),
+    );
+    assert_eq!(stopped["ok"], true);
+    assert_eq!(stopped["data"]["runtime"]["phase"], "stopped");
+    assert_eq!(stopped["data"]["runtime"]["activity"], "off");
 }

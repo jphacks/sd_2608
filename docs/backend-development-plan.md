@@ -9,7 +9,8 @@
 - PR #3 はマージ済み。開始地点は `origin/main` の `2b8828b9fee7ff1d56848d46c6c3a225e19445f0`。
 - 共通型、AppGateway、AppController、React Hook、15種類のモック、UI のひな型、18件のフロントテストは存在する。
 - 計画開始時の Rust は `greet` のみ。実 Gateway、カメラ、PC 取得、Domain、保存、予約、AI 通信は未実装だった。
-- B-01 の共通 DTO・実 IPC・Gateway・初期画面の接続を実装した。[実装・検証メモ](backend-runtime-contract.md) に範囲と確認方法を記載。B-02〜09 は未着手で、実センサーやレポートを実装済みとは扱わない。
+- B-01 の共通 DTO・実 IPC・Gateway・初期画面の接続を実装し、develop/backend へ取り込み済み。[B-01 メモ](backend-runtime-contract.md) を参照。
+- B-02 の PC 情報取得と開始・停止を実装した。[B-02 メモ](backend-pc-activity.md) に範囲と検証結果を記載。顔検出・判定・保存・レポートは B-03〜09 の後続作業。
 
 B担当の完成目標は、実 Windows アプリで次の操作が通ること。
 
@@ -235,6 +236,6 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 | M2：ローカルのレポート | B-05〜06 | Yes と離席後の両経路で、帰席条件なしに履歴カードが表示される |
 | M3：AI・停止・実機統合 | B-07〜09 | AI 要約、失敗、保存、停止・復帰、A の表示まで通る |
 
-直近の次の作業は **B-02：`feat/backend-pc-activity`**。B-01 を develop/backend へ取り込んだ後、その最新地点から分岐する。B-01 の範囲と確認方法は [実装・検証メモ](backend-runtime-contract.md) を参照。
+直近の次の作業は **B-03：`feat/backend-face-detection`**。B-02 を develop/backend へ取り込んだ後、その最新地点から分岐する。B-02 の範囲・実機確認の残りは [実装・検証メモ](backend-pc-activity.md) を参照。
 
 残り時間が厳しい場合も、顔・PC 情報・通知・Yes／自然離席のローカルカード・停止を優先する。AI の接続先を増やす、姿勢や日次記録へ着手する、といった拡張より、両経路を実演できる状態を先に確保する。
