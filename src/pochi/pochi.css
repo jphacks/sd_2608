@@ -95,3 +95,8 @@ html[data-pochi-desktop=true] .pochi-bubble { max-height:calc(100vh - var(--pet-
 .pochi-demo-phase small { display:block; margin-top:5px; }
 .pochi-room--demo .pochi-intro { display:none; }
 @media(max-width:760px) { .pochi-room--demo { min-height:1250px; } .pochi-demo { position:relative; top:16px; left:0; margin:auto; max-width:calc(100% - 32px); width:370px; } }
+
+.pochi-pet-button { animation:pochi-enter 1.3s ease-out both; }
+@keyframes pochi-enter { 0% { transform:translate(260px,0); } 35% { transform:translate(150px,-9px); } 70% { transform:translate(65px,-5px); } 100% { transform:translate(0,0); } }
+.pochi-app[data-reduced-motion=true] .pochi-pet-button { animation:none; }
+@media(prefers-reduced-motion:reduce) { .pochi-pet-button { animation:none; } }

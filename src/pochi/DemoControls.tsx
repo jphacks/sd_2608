@@ -10,6 +10,6 @@ export function DemoControls({ controller, view }: { controller: PochiController
     {phase === "away" && <button onClick={() => controller.demoAdvance(300_000)}>離席5分を経過させる</button>}
     {(phase === "away" || phase === "resting") && <button onClick={controller.returnToWork}>席に戻る・おかえり</button>}
     {phase && <button onClick={() => controller.end()}>作業を終える</button>}
-    <button onClick={controller.openSettings}>設定を開く</button><button onClick={controller.openReports}>記録を見る</button>
+    <button onClick={controller.openSettings}>設定を開く</button><button onClick={controller.openReports}>記録を見る</button><button onClick={() => { controller.end(); location.reload(); }}>デモを最初から</button>
   </aside>;
 }

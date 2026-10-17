@@ -65,7 +65,7 @@ export default function PochiApp() {
     if (detail === 0) tap(); else clickTimer.current = setTimeout(tap, 550);
   };
   const reports = [...(active ? [active] : []), ...data.history];
-  return <main className="pochi-app" style={{ "--pet-size": `${data.settings.petSize}px` } as CSSProperties}>
+  return <main className="pochi-app" data-reduced-motion={data.settings.reducedMotion || systemReduced} style={{ "--pet-size": `${data.settings.petSize}px` } as CSSProperties}>
     {!isDesktop && <header className="pochi-page-header"><a href="#" aria-label="ポチ ホーム" onClick={e => { e.preventDefault(); controller.closePanel(); }}><span className="pochi-logo">ぽ</span> ポチ <small>休憩のおとも</small></a><span className="pochi-pill">{controller.demo ? "デモ · 通常とは別の記録" : "この端末に保存"}</span></header>}
     <section className={`pochi-room ${controller.demo ? "pochi-room--demo" : ""}`} aria-label="ポチとの作業スペース">
       {controller.demo && <DemoControls controller={controller} view={view} />}
