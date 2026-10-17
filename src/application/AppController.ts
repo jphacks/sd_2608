@@ -1,4 +1,5 @@
 import type { AppGateway } from "../ports/AppGateway.js";
+import { GatewayConnectionError } from "../ports/AppGateway.js";
 import type { ApiError, ApiResult, AppSnapshot, Id } from "../contracts/domain.js";
 import type { AppViewActions, AppViewModel, UiOperation } from "../contracts/ui.js";
 
@@ -18,6 +19,7 @@ export class AppController {
   private reportQueue: Id[] = [];
   private reportRead = 0;
   private listRead = 0;
+  private retiredRuntimes = new Set<Id>();
 
   constructor(private readonly gateway: AppGateway) {}
   getState = (): AppViewModel => this.state;
@@ -31,6 +33,7 @@ export class AppController {
   }
   async connect(): Promise<void> {
     const epoch = ++this.epoch;
+    this.retiredRuntimes = new Set();
     const buffered: AppSnapshot[] = [];
     let initializing = true;
     this.publish({ connection: "connecting", pending: null, error: null });
@@ -39,16 +42,27 @@ export class AppController {
         if (epoch !== this.epoch) return;
         if (initializing) buffered.push(snapshot);
         else this.accept(snapshot);
+      }, error => {
+        if (epoch !== this.epoch) return;
+        if (error) this.publish({ connection: "error", error });
+        else if (!initializing && this.state.connection === "error") this.publish({ connection: "connected", error: null });
       });
       if (epoch !== this.epoch) return;
+      // connect が返した正本より前の runtime を、初期バッファから復活させない。
+      let lastInitialRuntime = -1;
+      buffered.forEach((snapshot, index) => { if (snapshot.runtimeId === initial.runtimeId) lastInitialRuntime = index; });
+      for (const snapshot of buffered.slice(0, Math.max(0, lastInitialRuntime))) {
+        if (snapshot.runtimeId !== initial.runtimeId) this.retiredRuntimes.add(snapshot.runtimeId);
+      }
       this.resetRuntime(initial);
       this.accept(initial, true);
       initializing = false;
-      for (const snapshot of buffered.sort((a, b) => a.revision - b.revision)) this.accept(snapshot);
+      // revision は runtime 内だけで比較できる。別 runtime を番号で並べ替えない。
+      for (const snapshot of buffered) this.accept(snapshot);
       this.publish({ connection: "connected" });
       await this.refreshReports();
-    } catch {
-      if (epoch === this.epoch) this.publish({ connection: "error", error: connectionError() });
+    } catch (error) {
+      if (epoch === this.epoch) this.publish({ connection: "error", error: error instanceof GatewayConnectionError ? error.detail : connectionError() });
     }
   }
   async dispose(): Promise<void> {
@@ -62,8 +76,12 @@ export class AppController {
     this.publish({ snapshot: null, report: { phase: "closed" }, reportList: [], reportListLoading: false, queuedReportCount: 0 });
   }
   private accept(snapshot: AppSnapshot, initial = false): void {
+    if (this.retiredRuntimes.has(snapshot.runtimeId)) return;
     const previous = this.state.snapshot;
-    if (previous && previous.runtimeId !== snapshot.runtimeId) this.resetRuntime(snapshot);
+    if (previous && previous.runtimeId !== snapshot.runtimeId) {
+      this.retiredRuntimes.add(previous.runtimeId);
+      this.resetRuntime(snapshot);
+    }
     else if (!initial && previous && snapshot.revision <= previous.revision) return;
     const returned = previous?.presence.value === "away" && snapshot.presence.value === "present";
     const resting = snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present";

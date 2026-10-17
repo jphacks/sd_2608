@@ -89,3 +89,30 @@ test("明示的な再試行の完了で、同じカードを新しい内容へ�
   assert.equal(controller.getState().report.report.status, "ready");
   assert.equal(controller.getState().report.report.attempt, 2);
 });
+
+test("初期バッファの別 runtime を revision 順に並べず、退役した状態を復活させない", async () => {
+  const gateway = new MockGateway(); let listener;
+  const current = { ...createSnapshot(), runtimeId: "restarted", revision: 1 };
+  gateway.connect = async callback => {
+    listener = callback;
+    callback({ ...createSnapshot(), revision: 90 });
+    callback(current);
+    return current;
+  };
+  const controller = new AppController(gateway); await controller.connect();
+  assert.equal(controller.getState().snapshot.runtimeId, "restarted");
+  listener({ ...createSnapshot(), revision: 100 });
+  assert.equal(controller.getState().snapshot.runtimeId, "restarted");
+});
+
+test("connect の正本取得後に到着した新しい runtime は受信順に採用する", async () => {
+  const gateway = new MockGateway();
+  gateway.connect = async callback => {
+    callback({ ...createSnapshot(), runtimeId: "restarted", revision: 1 });
+    callback({ ...createSnapshot(), runtimeId: "restarted", revision: 2 });
+    return { ...createSnapshot(), revision: 80 };
+  };
+  const controller = new AppController(gateway); await controller.connect();
+  assert.equal(controller.getState().snapshot.runtimeId, "restarted");
+  assert.equal(controller.getState().snapshot.revision, 2);
+});

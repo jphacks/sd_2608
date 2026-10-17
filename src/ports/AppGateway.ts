@@ -1,8 +1,8 @@
-import type { AppSnapshot, ApiResult, Id, Report, FaceInput } from "../contracts/domain.js";
+import type { ApiError, AppSnapshot, ApiResult, Id, Report, FaceInput } from "../contracts/domain.js";
 import type { StartRuntimeRequest, RespondReminderRequest, RespondReminderResult, UpdateSettingsRequest, ListReportsRequest, ReportPage, RetryReportRequest, FaceReceipt } from "../contracts/api.js";
 
 export interface AppGateway {
-  connect(onSnapshot: (state: AppSnapshot) => void): Promise<AppSnapshot>;
+  connect(onSnapshot: (state: AppSnapshot) => void, onConnectionError?: (error: ApiError | null) => void): Promise<AppSnapshot>;
   start(input: Omit<StartRuntimeRequest, "requestId">): Promise<ApiResult<AppSnapshot>>;
   stop(trackingId: Id): Promise<ApiResult<AppSnapshot>>;
   respond(input: Omit<RespondReminderRequest, "requestId">):
@@ -18,4 +18,8 @@ export interface AppGateway {
 }
 export interface FaceInputPort {
   submit(input: FaceInput): Promise<ApiResult<FaceReceipt>>;
+}
+
+export class GatewayConnectionError extends Error {
+  constructor(readonly detail: ApiError) { super(detail.message); }
 }
