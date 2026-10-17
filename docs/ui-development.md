@@ -1,6 +1,6 @@
 # 表示担当向け：phase3 までの開発の入口
 
-共通型、Gateway、接続用コントローラー、15シナリオのモック、表示コンポーネントのひな型を実装した。**表示担当は Rust・カメラ・AI の完成を待たず、phase3 までの画面と演出を作業できる。** 実センサー・保存・通信・Tauri ウィンドウ設定はまだ接続していない。
+共通型、Gateway、接続用コントローラー、15シナリオのモックを使用する。B-09 で A の PochiApp と実センサー・保存・通信・Tauri ウィンドウ操作を接続した。[現在の表示構成](pochi-typescript.md) と [統合・デモの確認記録](backend-integration.md) を参照。以下のひな型の説明は先行開発時の参考として残す。
 
 ## 1. 起動と確認
 
@@ -20,7 +20,7 @@ npm run build
 
 `npm test` は TypeScript の型検査と、Node 標準テストによるモック・コントローラーの検証を行う。追加のテストパッケージは不要。一時生成物は OS の一時ディレクトリへ出し、終了後に削除する。
 
-`npm run dev` と本番ビルドは[TypeScript版の手動フロー](pochi-typescript.md)を表示する。モックは **開発時かつ mode が mock のときだけ** 動的に読み込む。本番で未接続の実処理をモックで成功したように見せない。
+`npm run dev` のブラウザー起動は Tauri 起動案内、`npm run tauri dev` と単体アプリは[統合したポチの表示](pochi-typescript.md)になる。モックは **開発時かつ mode が mock のときだけ** 動的に読み込む。`?window=1&scenario=multipleReports` ではデスクトップ相当の領域を確認できる。
 
 ## 2. 最初に読むファイルと変更範囲
 

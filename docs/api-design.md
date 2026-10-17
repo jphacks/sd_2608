@@ -13,6 +13,8 @@
 
 今回、自前の HTTP サーバーや REST API は作らない。OS ウィンドウの移動・終了は専用 WindowAdapter に閉じ込め、UI コンポーネントへ Tauri の import を散らさない。
 
+B-09 では AppGateway の任意の `window: WindowAdapter` と AppViewActions に演出・配置・最前面・ドラッグ・終了・再接続を追加した。IPC v1 と既存10コマンドは変更していない。Yes は `reminder_respond` に統一し、画面だけで休憩を開始する別経路は置かない。[統合記録](backend-integration.md) を参照。
+
 ## 2. IPC 共通規則
 
 - API v1。コマンド名は snake_case、要求・応答の JSON は camelCase。すべてのコマンドをメインウィンドウだけに許可する。

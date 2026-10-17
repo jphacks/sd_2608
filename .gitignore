@@ -13,6 +13,7 @@ public/mediapipe/LICENSE.apache-2.0.txt
 public/mediapipe/SDK-README.md
 dist
 dist-ssr
+artifacts/
 *.local
 
 # Editor directories and files

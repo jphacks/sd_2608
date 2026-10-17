@@ -413,3 +413,27 @@ fn failed_rollback_warns_the_current_runtime_without_reviving_the_cancelled_job(
     assert_eq!(view.completion_seq.get(), 0);
     assert_eq!(view.warning.unwrap().code, ErrorCode::StorageFailure);
 }
+
+#[test]
+fn resume_interrupts_current_sitting_but_runs_the_existing_away_reservation_once() {
+    let mut rig = Rig::new();
+    rig.stable();
+    rig.run(6, false, 60_000);
+    let job = snapshot(&rig.service).jobs[0].clone();
+    rig.stable();
+    let previous = snapshot(&rig.service).session.unwrap();
+    // スリープ中はポーリングされず、OS 経過時間だけが進む。
+    rig.step(3_600_000, true, 0);
+    let resumed = snapshot(&rig.service);
+    // snapshot 読み出しでも再評価され、unknown の次は安定化待ちになる。
+    assert_ne!(resumed.presence.value, Presence::Present);
+    assert!(resumed.reminder.is_none());
+    let interrupted = resumed.session.unwrap();
+    assert_eq!(interrupted.end_reason, Some(EndReason::Interrupted));
+    assert_eq!(interrupted.elapsed_ms, previous.elapsed_ms);
+    assert_eq!(resumed.jobs.len(), 1);
+    assert!(rig.service.report_worker.step());
+    assert_eq!(card(&rig.service, &job.id).status, ReportStatus::Local);
+    assert!(!rig.service.report_worker.step());
+    assert_eq!(snapshot(&rig.service).completion_seq.get(), 1);
+}

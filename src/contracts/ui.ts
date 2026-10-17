@@ -1,6 +1,7 @@
 import type { ApiError, AppSnapshot, Id, Report, SettingsView } from "./domain.js";
 import type { ReportListItem, StartRuntimeRequest, UpdateSettingsRequest } from "./api.js";
 import type { BubbleViewModel, PetManifest, PetViewModel } from "./presentation.js";
+import type { Motion } from "../pochi/animation.js";
 
 export type StartInput = Omit<StartRuntimeRequest, "requestId">;
 export type SaveSettingsInput = Omit<UpdateSettingsRequest, "requestId">;
@@ -15,6 +16,7 @@ export type AppViewModel = {
   connection: "connecting" | "connected" | "error";
   snapshot: AppSnapshot | null;
   pet: PetViewModel;
+  motion: Motion;
   bubble: BubbleViewModel | null;
   report: ReportPanelState;
   reportList: ReportListItem[];
@@ -24,6 +26,13 @@ export type AppViewModel = {
   error: ApiError | null;
 };
 export interface AppViewActions {
+  completeAnimation(token: number): void;
+  turn(): void;
+  moveWindow(): Promise<void>;
+  placeWindow(): Promise<void>;
+  pinWindow(value: boolean): Promise<void>;
+  closeApp(): Promise<void>;
+  reconnect(): Promise<void>;
   start(input: StartInput): Promise<void>;
   stop(): Promise<void>;
   answer(answer: "yes" | "no"): Promise<void>;

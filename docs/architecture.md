@@ -20,6 +20,8 @@ B-07でReportProviderとHTTPアダプターを追加した。ワーカーは固�
 
 ## 1. 構成と責務
 
+B-08／B-09 で A の PochiApp を既存 AppController／AppGateway に統合した。独立した手動計時・localStorage・PochiController は廃止し、通知とレポートの正規状態は Rust に保持する。演出のきっかけと表示キューは AppController、実際のアトラス再生は PochiSprite が担当する。WindowAdapter は AppGateway の任意の window ポートに注入する。[統合・デモの記録](backend-integration.md) を参照。
+
 Tauri 2 + React + TypeScript + Rust を使用する。顔検出は WebView 内、PC 情報取得・判定・予約・保存・AI 通信は Rust に置く。**時間判定とレポート予約の実行主体を Rust に集め、画面の開閉・GIF の再生から独立させる。**
 
 ```mermaid
@@ -97,7 +99,7 @@ Rust の `AppService` が正規状態を1つ所有する。通常は1秒周期�
 
 起動 → Gateway 接続・状態取得 → 登場 GIF → 開始操作 → Rust の監視開始 → カメラ開始・顔サンプル送信。カメラ未許可・開始失敗なら `unknown` を表示し、在席通知は始めない。アプリを開いただけでは取得・保存・外部送信を開始しない。
 
-顔の映像は TS の FaceAdapter 内で完結させ、Rust へは boolean・取得時刻・連番・取得元のみ渡す。PC 情報は Rust から取得する。画面を閉じても監視とレポート予約は動作を続ける。
+顔の映像は TS の FaceAdapter 内で完結させ、Rust へは boolean・取得時刻・連番・取得元のみ渡す。PC 情報は Rust から取得する。設定・カードを閉じても監視とレポート予約は動作を続ける。アプリ終了・WebView の再読込では監視と未完了ジョブを停止する。
 
 ### Yes と自然離席
 

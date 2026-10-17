@@ -13,7 +13,7 @@ export default function App() {
   return <main className="setup-notice">
     <h1>休憩のおとも</h1>
     <p>実アプリへの接続には Tauri での起動が必要です。</p>
-    {import.meta.env.DEV && <p><code>npm run tauri dev</code> で起動できます。監視・レポート生成はまだ未接続です。</p>}
+    <p><code>npm run tauri dev</code> でポチを起動できます。</p>
     {import.meta.env.DEV && <p>表示開発は <code>npm run dev:mock</code> で起動してください。</p>}
   </main>;
 }

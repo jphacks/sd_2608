@@ -1,0 +1,6 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev:demo",
+    "beforeBuildCommand": "npm run build:demo"
+  }
+}
