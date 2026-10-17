@@ -1,0 +1,38 @@
+{
+  "apiVersion": 1,
+  "runtimeId": "fixture-runtime",
+  "revision": 0,
+  "emittedAt": 1792195200000,
+  "runtime": {
+    "phase": "stopped",
+    "trackingId": null,
+    "profile": "normal",
+    "effectiveReportMode": "local",
+    "camera": "off",
+    "activity": "off",
+    "consent": {
+      "activity": false,
+      "history": false,
+      "externalReport": false
+    }
+  },
+  "settings": {
+    "reportMode": "local",
+    "provider": null,
+    "excludedApps": [],
+    "reducedMotion": false,
+    "revision": 0,
+    "hasApiKey": false
+  },
+  "presence": {
+    "value": "unknown",
+    "reason": "sensorUnavailable",
+    "faceMissingSince": null,
+    "awayDetectedAt": null
+  },
+  "session": null,
+  "reminder": null,
+  "jobs": [],
+  "completionSeq": 0,
+  "warning": null
+}
