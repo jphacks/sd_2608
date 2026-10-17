@@ -1,81 +1,82 @@
-.pochi-app { --p-cream:#fff6e8; --p-card:#fffdf8; --p-ink:#4a2c1e; --p-sub:#856753; --p-line:#ebd3b6; --p-ear:#8b5e4b; --p-sage:#2f6b52; color:var(--p-ink); font-family:"Yu Gothic UI","Hiragino Maru Gothic ProN",sans-serif; line-height:1.65; min-height:100vh; background:var(--p-cream); }
+/* PR #5 の右下 UI。業務状態は main の state/actions から受け取る。 */
+html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] #root { height:100%; background:transparent; }
+.pochi-app {
+  --cream:#FFF6E8; --card:#FFFDF8; --ink:#4A2C1E; --sub:#7A5A48;
+  --line:#EBD3B6; --bis:#F3CDA6; --ear:#8B5E4B; --sage:#2F6B52; --sagebg:#DDEFE3;
+  --dock-bottom:60px;
+  position:fixed; inset:0; background:transparent; color:var(--ink); pointer-events:none;
+  font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  font-size:15px; line-height:1.6;
+}
 .pochi-app * { box-sizing:border-box; }
-.pochi-app button,.pochi-app input,.pochi-app textarea,.pochi-app select { font:inherit; color:inherit; border:1px solid var(--p-line); border-radius:13px; background:var(--p-cream); }
-.pochi-app button { min-height:40px; padding:8px 13px; transition:background .18s; }
-.pochi-app button:hover:not(:disabled) { background:#f4e4cd; }
-.pochi-app button:focus-visible,.pochi-app input:focus-visible,.pochi-app textarea:focus-visible,.pochi-app select:focus-visible { outline:3px solid #d79341; outline-offset:3px; }
-.pochi-page-header { height:86px; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(20px,5vw,80px); gap:12px; }
-.pochi-page-header a { text-decoration:none; display:flex; align-items:center; gap:12px; font-size:23px; font-weight:800; color:inherit; }
-.pochi-page-header a small { font-size:12px; font-weight:500; color:var(--p-sub); letter-spacing:.06em; }
-.pochi-logo { width:36px; height:36px; display:grid; place-items:center; border:1px solid var(--p-line); border-radius:14px; background:#f3cda6; font-size:21px; }
-.pochi-pill { display:inline-block; border:1px solid var(--p-line); padding:4px 11px; font-size:11px; border-radius:30px; white-space:nowrap; background:var(--p-card); }
-.pochi-room { position:relative; margin:0 24px 24px; min-height:760px; height:calc(100vh - 110px); border-radius:30px; overflow:hidden; background:radial-gradient(ellipse at 15% 10%,#e5ecec,transparent 65%),#cfdde0; }
-.pochi-room::after { content:""; position:absolute; width:560px; height:560px; left:-80px; bottom:-340px; background:#d8e2ce; border-radius:50%; pointer-events:none; }
-.pochi-intro { position:absolute; top:14%; left:7%; max-width:42%; }
-.pochi-eyebrow { font-size:10px; font-weight:800; letter-spacing:.2em; color:var(--p-sub); }
-.pochi-intro h1 { font-size:clamp(30px,4vw,58px); line-height:1.5; letter-spacing:.03em; margin:20px 0; font-weight:600; }
-.pochi-intro p { color:var(--p-sub); line-height:2.2; font-size:14px; }
-.pochi-guide { display:flex; flex-direction:column; gap:8px; margin-top:44px; font-size:12px; color:var(--p-sub); }
-.pochi-dock { position:absolute; right:clamp(20px,5vw,90px); bottom:18px; width:370px; max-width:calc(100% - 24px); display:flex; flex-direction:column; align-items:center; z-index:1; }
-.pochi-bubble { position:relative; width:100%; max-height:min(420px, calc(max(760px, 100vh - 110px) - var(--pet-size, 230px) - 130px)); overflow:auto; scrollbar-width:thin; background:var(--p-card); border:1px solid #fff8eb; border-radius:26px; padding:24px; box-shadow:0 3px 0 var(--p-line),0 12px 28px #4a2c1e12; margin-bottom:8px; }
-.pochi-bubble h2 { font-size:22px; letter-spacing:.025em; line-height:1.6; font-weight:700; margin:8px 0 12px; }
-.pochi-bubble p { font-size:13px; margin:10px 0 16px; }
-.pochi-muted,.pochi-bubble p.pochi-muted { color:var(--p-sub); font-size:11px; }
-.pochi-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
-.pochi-actions>* { flex:1; }
-.pochi-app button.pochi-primary { color:var(--p-cream); background:var(--p-ear); border-color:var(--p-ear); }
-.pochi-app button.pochi-primary:hover:not(:disabled) { background:#754c3d; }
-.pochi-full { width:100%; }
-.pochi-app button.pochi-text-button { border:0; background:transparent; padding:10px 0 0; font-size:11px; color:var(--p-sub); }
-.pochi-bubble label { display:block; font-size:12px; font-weight:600; margin:12px 0; }
-.pochi-bubble input:not([type=checkbox]),.pochi-bubble textarea { display:block; width:100%; min-width:0; padding:10px 12px; margin-top:5px; resize:vertical; }
-.pochi-bubble .pochi-setting-row { display:flex; align-items:center; gap:10px; justify-content:space-between; padding:7px 0; margin:0; border-bottom:1px solid #ebd3b650; }
-.pochi-setting-row span { white-space:nowrap; }
-.pochi-setting-row input[type=number] { display:inline-block; width:68px; padding:5px; margin:0; }
-.pochi-setting-row select { max-width:150px; padding:7px 5px; font-size:12px; }
-.pochi-bubble label.pochi-check { display:flex; align-items:center; gap:7px; }
-.pochi-check input { accent-color:var(--p-ear); }
-.pochi-tabs { display:flex; gap:8px; margin-bottom:15px; }
-.pochi-tabs button { flex:1; border-radius:30px; min-height:35px; padding:4px 12px; }
-.pochi-tabs button[aria-pressed=true] { background:#f3cda6; border-color:var(--p-ear); }
-.pochi-pet-row { width:100%; display:flex; justify-content:flex-end; padding:0 20px; }
-.pochi-app button.pochi-pet-button { border:0; padding:0; background:transparent; flex:none; min-height:0; }
-.pochi-app button.pochi-pet-button:hover { background:transparent; }
-.pochi-sprite { width:100%; height:100%; display:block; object-fit:contain; background-repeat:no-repeat; }
-.pochi-status { display:flex; align-items:center; gap:8px; background:#fffdf8d9; border-radius:22px; padding:4px 13px; margin:4px 0 8px; font-size:11px; }
-.pochi-status-dot { width:6px; height:6px; background:var(--p-ear); border-radius:50%; }
-.pochi-status-dot.is-resting { background:var(--p-sage); }
-.pochi-status time { font-variant-numeric:tabular-nums; color:var(--p-sub); }
-.pochi-toolbar { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; }
-.pochi-toolbar button { font-size:11px; padding:4px 10px; min-height:30px; background:var(--p-card); border-color:transparent; }
-.pochi-hint { font-size:9px; margin:8px 0 0; color:#685e51; text-align:center; }
-.pochi-alert { padding:12px; background:#fff1d7; border:1px solid #d2a777; border-radius:13px; margin-bottom:12px; font-size:12px; }
-.pochi-report-entry { border-top:1px solid var(--p-line); padding:17px 0 4px; }
-.pochi-report-entry header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.pochi-report-entry header small { font-size:10px; color:var(--p-sub); }
-.pochi-report-entry h3 { font-size:15px; margin:3px 0; overflow-wrap:anywhere; }
-.pochi-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; background:var(--p-cream); border-radius:12px; padding:12px 8px; }
-.pochi-stats dt { font-size:10px; color:var(--p-sub); }
-.pochi-stats dd { font-size:13px; margin:5px 0 0; font-variant-numeric:tabular-nums; }
-.pochi-stats dd small { font-size:10px; }
-.pochi-break-entry { border-left:2px solid #d4b18d; padding:0 0 1px 12px; margin:18px 0; }
-.pochi-break-entry h4 { font-size:12px; margin:0; }
-.pochi-break-entry h4 small { display:block; font-size:9px; color:var(--p-sub); font-weight:400; }
-.pochi-break-entry p { font-size:11px; white-space:pre-wrap; overflow-wrap:anywhere; }
-html[data-pochi-desktop=true],html[data-pochi-desktop=true] body,html[data-pochi-desktop=true] #root { background:transparent; }
-html[data-pochi-desktop=true] .pochi-app { background:transparent; min-height:100vh; }
-html[data-pochi-desktop=true] .pochi-room { margin:0; border-radius:0; background:transparent; min-height:100vh; height:100vh; }
-html[data-pochi-desktop=true] .pochi-room::after { display:none; }
-html[data-pochi-desktop=true] .pochi-dock { right:12px; bottom:12px; width:calc(100% - 24px); }
-html[data-pochi-desktop=true] .pochi-bubble { max-height:calc(100vh - var(--pet-size, 230px) - 140px); }
-@media(max-width:760px) { .pochi-intro { display:none; } .pochi-room { margin:0 10px 10px; min-height:760px; height:calc(100vh - 96px); } .pochi-dock { right:50%; transform:translateX(50%); } .pochi-page-header { padding:0 16px; } .pochi-page-header a small { display:none; } }
-@media(prefers-reduced-motion:reduce) { .pochi-app button { transition:none; } }
-.pochi-bubble fieldset { min-width:0; border:0; padding:0; }
-.pochi-bubble select { max-width:100%; }
-.pochi-bubble p,.pochi-bubble li { overflow-wrap:anywhere; }
-.pochi-bubble .report-panel { border-bottom:1px solid var(--p-line); padding-bottom:16px; margin-bottom:16px; }
-.pochi-bubble [data-emphasis=hard] { border:2px solid #af5a31; }
-.pochi-demo-controls { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:4px 8px; background:#fff6e8; font-size:10px; z-index:5; }
+.pochi-app .pet { position:absolute; right:36px; bottom:var(--dock-bottom); width:0; height:0; pointer-events:none; }
+.pochi-app .bub,.pochi-app .gear,.pochi-app #petbtn,.pochi-app .chip { pointer-events:auto; }
+.pochi-app button,.pochi-app input,.pochi-app select,.pochi-app textarea { font:inherit; color:inherit; }
+.pochi-app button { cursor:pointer; }
+.pochi-app button:disabled { opacity:.5; cursor:default; }
+.pochi-app button:focus-visible,.pochi-app input:focus-visible,.pochi-app select:focus-visible,.pochi-app textarea:focus-visible,.pochi-app summary:focus-visible { outline:3px solid #E8A33D; outline-offset:2px; }
+.pochi-app button:hover:not(:disabled) { filter:brightness(.98); }
+.pochi-app .dwrap { position:absolute; right:0; bottom:0; width:170px; height:170px; }
+.pochi-app #petbtn { display:block; border:0; background:transparent; padding:0; width:170px; height:170px; min-height:0; border-radius:50%; }
+.pochi-app .dog { width:170px; height:170px; object-fit:contain; display:block; pointer-events:none; background-repeat:no-repeat; }
+.pochi-app .zz { position:absolute; right:14px; top:30px; font-weight:700; color:var(--ear); opacity:0; font-size:18px; letter-spacing:2px; pointer-events:none; }
+.pochi-app .dwrap.lying .zz { opacity:1; animation:pochi-zz 2.4s ease-in-out infinite; }
+@keyframes pochi-zz { 50% { transform:translateY(-8px); } }
+.pochi-app .gear { position:absolute; right:178px; bottom:84px; width:44px; height:44px; min-height:0; padding:0; border-radius:50%; border:0; background:var(--card); box-shadow:0 2px 0 var(--line); display:grid; place-items:center; color:var(--ear); }
+.pochi-app .gear:hover { background:var(--card); }
+.pochi-app .chip { position:absolute; right:178px; bottom:30px; background:var(--card); border:0; border-radius:999px; padding:6px 14px; font-size:13px; box-shadow:0 2px 0 var(--line); white-space:nowrap; display:none; max-width:calc(100vw - 240px); overflow:hidden; text-overflow:ellipsis; }
+.pochi-app .chip.on { display:block; }
+.pochi-app .bub { position:absolute; right:-4px; bottom:176px; width:340px; max-width:calc(100vw - 64px); background:var(--card); border-radius:26px; padding:0; box-shadow:0 3px 0 var(--line),0 10px 28px rgba(74,44,30,.18); transform-origin:bottom right; animation:pochi-pop .38s cubic-bezier(.34,1.56,.64,1); }
+.pochi-app .bub.wide { width:380px; }
+.pochi-app .bub[hidden] { display:none; }
+.pochi-app .bub::after { content:""; position:absolute; right:62px; bottom:-12px; width:22px; height:22px; background:var(--card); transform:rotate(45deg); border-radius:4px; box-shadow:3px 3px 0 var(--line); z-index:-1; }
+.pochi-app .bub-body { padding:16px 18px; max-height:min(60vh,calc(100dvh - var(--dock-bottom) - 196px)); overflow:auto; scrollbar-width:thin; border-radius:26px; overflow-wrap:anywhere; }
+@keyframes pochi-pop { 0% { transform:scale(.7) translateY(14px); opacity:0; } 100% { transform:none; opacity:1; } }
+.pochi-app .bub p { margin:0 0 10px; }
+.pochi-app .bub .m { font-weight:500; }
+.pochi-app .bub .sm { font-size:12.5px; color:var(--sub); }
+.pochi-app .bub h2,.pochi-app .bub h3 { margin:0 0 8px; font-size:16px; }
+.pochi-app .bs { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.pochi-app .bs button,.pochi-app .bub form button,.pochi-app .report-panel>button { flex:1; min-height:46px; border-radius:16px; border:1.5px solid var(--line); background:var(--cream); padding:6px 14px; font-weight:500; }
+.pochi-app .bs .p { background:var(--ear); color:var(--card); border-color:var(--ear); font-weight:700; }
+.pochi-app .bs .p:hover { background:var(--ear); }
+.pochi-app .bub label { font-size:13px; font-weight:700; display:block; margin:10px 0 3px; }
+.pochi-app .bub input:not([type=checkbox]),.pochi-app .bub select,.pochi-app .bub textarea { display:block; width:100%; max-width:100%; min-width:0; border:1.5px solid var(--line); background:var(--cream); color:var(--ink); border-radius:14px; padding:10px 12px; min-height:44px; margin:4px 0 8px; }
+.pochi-app .bub textarea { resize:vertical; }
+.pochi-app .bub label.check { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; font-weight:500; margin:12px 0; }
+.pochi-app .bub input[type=checkbox] { width:auto; min-height:0; margin:4px 0 0; accent-color:var(--ear); flex:none; }
+.pochi-app .bub fieldset { min-width:0; padding:0; border:0; }
+.pochi-app .settings-panel>p,.pochi-app .settings-panel fieldset>p { font-size:12.5px; color:var(--sub); }
+.pochi-app .settings-panel fieldset>button { width:100%; background:var(--ear); color:var(--card); border-color:var(--ear); }
+.pochi-app .alert { background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:10px; font-size:12.5px; margin-bottom:8px; }
+.pochi-app .notice { margin-bottom:12px; }
+.pochi-app .notice[data-emphasis=hard] { border:2px solid var(--ear); border-radius:16px; padding:10px; }
+.pochi-app .dots span { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ear); margin:0 3px; animation:pochi-dots 1.2s infinite; }
+.pochi-app .dots span:nth-child(2) { animation-delay:.2s; }
+.pochi-app .dots span:nth-child(3) { animation-delay:.4s; }
+@keyframes pochi-dots { 0%,80%,100% { transform:scale(.6); opacity:.5; } 40% { transform:scale(1); opacity:1; } }
+.pochi-app .report-panel { margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line); font-size:13px; }
+.pochi-app .report-panel h3 { font-size:14px; margin-top:12px; }
+.pochi-app .report-panel>button { width:100%; margin-top:8px; }
+.pochi-app .report-list { list-style:none; padding:0; margin:0; }
+.pochi-app .report-list button { text-align:left; width:100%; min-height:44px; background:var(--cream); border:1px solid var(--line); border-radius:12px; margin-bottom:6px; font-size:13px; }
+.pochi-app details { font-size:13px; margin:8px 0; }
+.pochi-app summary { cursor:pointer; }
+.pochi-app .pet-actions { margin-top:10px; }
+.pochi-app .pet-actions button { min-height:40px; }
+.pochi-app .drag { touch-action:none; cursor:move; }
+.pochi-app .status-line { margin:10px 0 0!important; font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums; }
+.pochi-app[data-reduced-motion=true] * { animation:none!important; transition:none!important; }
+.pochi-demo-controls { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:4px 8px; background:#FFF6E8; font-size:10px; z-index:5; }
 .pochi-demo-controls button { font-size:11px; padding:4px 8px; }
-html[data-pochi-desktop=true] .pochi-dock { max-height:calc(100vh - 24px); transform:none; }
-html[data-pochi-desktop=true] .pochi-bubble { min-height:100px; max-height:calc(100vh - 350px); }
+@media(prefers-color-scheme:dark) {
+  .pochi-app { --cream:#2A1E18; --card:#3A2B22; --ink:#FFF1E0; --sub:#D9BFA6; --line:#5A4234; --bis:#7A5638; --ear:#E0B08C; --sage:#9ED2B6; --sagebg:#24402F; }
+  .pochi-app .bs .p,.pochi-app .settings-panel fieldset>button { color:#2A1E18; }
+}
+@media(max-width:380px) {
+  .pochi-app { --dock-bottom:36px; }
+  .pochi-app .pet { right:20px; }
+  .pochi-app .bub { max-width:calc(100vw - 32px); }
+  .pochi-app .chip { right:152px; max-width:calc(100vw - 188px); }
+}
+@media(prefers-reduced-motion:reduce) { .pochi-app * { animation:none!important; transition:none!important; } }
