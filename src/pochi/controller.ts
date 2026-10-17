@@ -101,15 +101,16 @@ export class PochiController {
     const active = this.view.data.active;
     if (!active) {
       if (this.view.panel === "start") return; // The view supplies the current form draft on the second click.
-      this.publish({ panel: "start", message: "" }); this.motion("idle", "record"); return;
+      this.publish({ panel: "start", message: "" }); this.motion("idle"); return;
     }
-    this.publish({ panel: active.phase === "recovered" ? "recovery" : active.phase === "reminder" ? "reminder"
-      : active.phase === "resting" ? "rest" : active.phase === "away" ? "away" : "menu", message: "" });
+    if (active.phase === "away" || active.phase === "resting") { this.returnToWork(); return; }
+    this.motion("idle", active.phase === "reminder" ? "reminder" : "record");
+    this.publish({ panel: active.phase === "recovered" ? "recovery" : active.phase === "reminder" ? "reminder" : "menu", message: "" });
   };
   start(task: string, kind: "work" | "study") {
     this.tick();
     if (this.apply({ type: "start", task, kind, id: this.id(), now: this.now() })) {
-      this.publish({ panel: "quiet", message: "記録をはじめたよ。ここで待ってるね。", closing: false }); this.motion("rest");
+      this.publish({ panel: "quiet", message: `${new Date(this.now()).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} に開始を記録したよ。いっしょにがんばろう`, closing: false }); this.motion("rest");
     }
   }
   accept = () => {
@@ -137,16 +138,18 @@ export class PochiController {
   continueWork = () => { this.publish({ panel: "quiet", message: "いっしょに、少しずつ。" }); this.motion("rest"); };
   turn = () => { if (this.view.data.active && this.view.data.active.phase !== "working") return; this.motion("idle", "turn_sit"); };
   completeAnimation = (token: number) => { const motion = finishMotion(this.view.motion, token); if (motion !== this.view.motion) this.publish({ motion }); };
-  openSettings = () => this.publish({ panel: "settings", message: "" });
+  openSettings = () => { this.motion("idle", "record"); this.publish({ panel: "settings", message: "" }); };
   saveSettings(settings: Settings) {
     this.tick(); this.apply({ type: "settings", settings, now: this.now() });
     this.closePanel();
   }
   closePanel = () => {
     const phase = this.view.data.active?.phase;
+    if (phase && phase !== "reminder" && phase !== "recovered") this.motion("rest");
+    else this.motion("idle", phase === "reminder" ? "reminder" : undefined);
     this.publish({ panel: phase === "reminder" ? "reminder" : phase === "resting" ? "rest" : phase === "away" ? "away" : phase === "recovered" ? "recovery" : phase ? "quiet" : "home" });
   };
-  openReports = () => this.publish({ panel: "report" });
+  openReports = () => { this.motion("idle", "record"); this.publish({ panel: "report" }); };
   end = (closing = false) => {
     this.tick(); this.apply({ type: "end", now: this.now() });
     this.publish({ panel: "report", closing, message: "" }); this.motion("idle"); return this.persist();

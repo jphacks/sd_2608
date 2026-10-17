@@ -1,35 +1,25 @@
 import { useEffect, useState } from "react";
 import type { Motion } from "./animation.js";
-import { animationSpec, frameAt } from "./animation.js";
+import { animationSpec } from "./animation.js";
 export function PochiSprite({ motion, reducedMotion, onComplete }: {
   motion: Motion; reducedMotion: boolean; onComplete(token: number): void;
 }) {
-  const [frame, setFrame] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [entering, setEntering] = useState(true), [failed, setFailed] = useState(false);
   const spec = animationSpec(motion.id);
+  useEffect(() => { const timer = setTimeout(() => setEntering(false), 1300); return () => clearTimeout(timer); }, []);
   useEffect(() => {
-    let cancelled = false, handle = 0;
-    let start = 0, started = false;
-    setFrame(reducedMotion ? spec.frames[spec.count - 1] : spec.frames[0]); setFailed(false);
-    const run = (now: number) => {
-      if (cancelled) return;
-      const step = frameAt(motion.id, now - start); setFrame(step.frame);
-      if (step.done || reducedMotion) {
-        if (!spec.loop || motion.id === "sit_to_rest") onComplete(motion.token);
-      } else handle = requestAnimationFrame(run);
+    setFailed(false); let cancelled = false, timer: ReturnType<typeof setTimeout> | undefined;
+    const image = new Image(); let started = false;
+    const begin = () => {
+      if (cancelled || started) return; started = true;
+      // Like the HTML, idle/welcome/reminder/record stay animated until the next pose.
+      if (!spec.loop) timer = setTimeout(() => { if (!cancelled) onComplete(motion.token); }, reducedMotion ? 0 : spec.durations.reduce((a, b) => a + b, 0));
     };
-    const begin = () => { if (cancelled || started) return; started = true; start = performance.now(); handle = requestAnimationFrame(run); };
-    const image = new Image(); image.onload = begin;
-    image.onerror = () => { if (!cancelled) { setFailed(true); begin(); } };
-    image.src = spec.src;
+    image.onload = begin; image.onerror = () => { if (!cancelled) { setFailed(true); begin(); } };
+    image.src = spec.gifSrc;
     if (image.complete && image.naturalWidth > 0) begin();
-    return () => { cancelled = true; cancelAnimationFrame(handle); image.onerror = null; image.onload = null; };
-    // A playback token identifies one uninterrupted segment of a sequence.
+    return () => { cancelled = true; clearTimeout(timer); image.onload = image.onerror = null; };
   }, [motion.id, motion.token, reducedMotion, onComplete]);
   const poster = motion.id === "rest" || motion.id === "sit_to_rest" ? "rest" : "idle";
-  return failed ? <img className="pochi-sprite" src={`/pet/pochi/${poster}-poster.png`} alt="ポチ" />
-    : <span className="pochi-sprite" role="img" aria-label="ポチ" style={{
-      backgroundImage: `url(${spec.src})`, backgroundSize: `${spec.columns * 100}% ${spec.rows * 100}%`,
-      backgroundPosition: `${frame % spec.columns / (spec.columns - 1) * 100}% ${Math.floor(frame / spec.columns) / (spec.rows - 1) * 100}%`,
-    }} />;
+  return <img key={`${motion.token}:${motion.token === 0 && entering}`} className={`dog${entering && motion.token === 0 && !reducedMotion ? " run" : ""}`} src={failed || reducedMotion ? `/pet/pochi/${poster}-poster.png` : spec.gifSrc} alt="ポチ" draggable={false} />;
 }

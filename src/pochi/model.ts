@@ -14,7 +14,7 @@ export type LocalCard = { id: string; session: Session; trigger: "break" | "away
   status: "scheduled" | "generating" | "ready"; readyAt: number | null };
 export type PochiData = { version: 1; settings: Settings; active: Session | null; history: Session[]; cards: LocalCard[] };
 export const defaults: Settings = { remindMinutes: 30, restMinutes: 10, snoozeMinutes: 10,
-  petSize: 230, alwaysOnTop: true, reducedMotion: false, sound: "chime", cameraDemo: false,
+  petSize: 170, alwaysOnTop: true, reducedMotion: false, sound: "chime", cameraDemo: false,
   awayCountsAsRest: false, postureDemo: false, saveHistory: true };
 export const freshData = (): PochiData => ({ version: 1, settings: { ...defaults }, active: null, history: [], cards: [] });
 export function checkedSettings(input: Settings): Settings {

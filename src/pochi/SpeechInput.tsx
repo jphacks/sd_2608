@@ -20,5 +20,5 @@ export function SpeechInput({ value, onChange }: { value: string; onChange(value
     recognition.current = r;
     try { r.start(); setListening(true); setMessage(""); } catch { recognition.current = null; setMessage("音声入力を開始できませんでした。"); }
   };
-  return <><button className="pochi-mic" type="button" aria-pressed={listening} onClick={toggle}>{listening ? "音声入力を止める" : "音声で入力"}</button><p className="pochi-muted" role="status">{message || (listening ? "聞いています… もう一度押すと停止します。" : "任意です。音声認識の処理先は利用するブラウザーに依存します。")}</p></>;
+  return <><div className="fld"><input aria-label="今回の作業" maxLength={120} autoFocus value={value} placeholder="何をする？（空でもOK）" onChange={e => onChange(e.target.value)} /><button className={`mic${listening ? " on" : ""}`} type="button" aria-label={listening ? "音声入力を止める" : "音声入力"} aria-pressed={listening} onClick={toggle}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg></button></div><p className="sm2" role="status">{message || (listening ? "聞いています… もう一度タップで停止" : "")}</p><details><summary className="sm2">音声入力について</summary><p className="sm">任意です。音声認識の処理先は利用するブラウザーに依存します。</p></details></>;
 }

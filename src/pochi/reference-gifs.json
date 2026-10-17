@@ -1,0 +1,30 @@
+{
+  "idle": {
+    "src": "/pet/pochi/reference/idle.gif",
+    "sha256": "0708c035a93bd97cdd152e29b21568c7eb568e9ff22e830588db8477f9409c42"
+  },
+  "welcome": {
+    "src": "/pet/pochi/reference/welcome.gif",
+    "sha256": "087f9c714db7f7d08232bd6cf60f7fb1d3a947bab90a02adc6dbcfd47df9f702"
+  },
+  "rest": {
+    "src": "/pet/pochi/reference/rest.gif",
+    "sha256": "a20d0decbd15a3961f1ddd5eb47e873c7f8b1a9461421e27b9f2ee273e78658f"
+  },
+  "rest_to_sit": {
+    "src": "/pet/pochi/reference/rest_to_sit.gif",
+    "sha256": "9c1d0b192d5b351df3b2261156f2c05c7485b29c9455d37862d4d66cd3a11365"
+  },
+  "turn_sit": {
+    "src": "/pet/pochi/reference/turn_sit.gif",
+    "sha256": "34d127279c48e0b58fbbb157c78c72913f8e41433b8a8f59058146b173b35561"
+  },
+  "reminder": {
+    "src": "/pet/pochi/reference/reminder.gif",
+    "sha256": "d6588e8cb7028fc52c1e5cb794e3b08ea06466945bd1656105338cf0a08eb521"
+  },
+  "record": {
+    "src": "/pet/pochi/reference/record.gif",
+    "sha256": "7c79ecbcb0cc96d06dc530eeee72e20e8baadbb4770cd31b835a620d707ceefa"
+  }
+}

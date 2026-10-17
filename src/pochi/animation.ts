@@ -1,10 +1,14 @@
 import atlasData from "./atlases.json" with { type: "json" };
+import referenceGifs from "./reference-gifs.json" with { type: "json" };
 export type ActionId = keyof typeof atlasData | "sit_to_rest";
 export type Pose = "idle" | "rest";
 export function animationSpec(id: ActionId) {
-  const base = atlasData[id === "sit_to_rest" ? "rest_to_sit" : id];
-  return { ...base, durations: id === "sit_to_rest" ? [...base.durations].reverse() : base.durations,
-    frames: Array.from({ length: base.count }, (_, i) => id === "sit_to_rest" ? base.count - 1 - i : i) };
+  // Preserve the supplied HTML's POSE table, including A06 -> turn_sit (3320ms).
+  const name = id === "sit_to_rest" ? "turn_sit" : id;
+  const base = atlasData[name];
+  return { ...base, gifSrc: referenceGifs[name].src,
+    loop: !["sit_to_rest", "rest_to_sit", "turn_sit"].includes(id),
+    durations: base.durations, frames: Array.from({ length: base.count }, (_, i) => i) };
 }
 export function frameAt(id: ActionId, elapsedMs: number): { frame: number; done: boolean } {
   const spec = animationSpec(id), total = spec.durations.reduce((a, b) => a + b, 0);
