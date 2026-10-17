@@ -1,4 +1,4 @@
-import { checkedSettings, freshData, restoreData } from "./model.js";
+import { checkedSettings, dataForStorage, defaults, freshData, restoreData } from "./model.js";
 import type { PochiData, Session } from "./model.js";
 export interface Repository { load(): { data: PochiData; notice: string }; save(data: PochiData): void; release(): void }
 export interface StoragePort { getItem(key: string): string | null; setItem(key: string, value: string): void; removeItem(key: string): void }
@@ -9,7 +9,9 @@ function isSession(value: unknown, ended: boolean): value is Session {
   const s = value as Session;
   return typeof s.id === "string" && typeof s.task === "string" && ["work", "study"].includes(s.kind)
     && finite(s.startedAt) && finite(s.updatedAt) && (ended ? finite(s.endedAt) : s.endedAt === null)
-    && ["working", "reminder", "resting", "recovered"].includes(s.phase)
+    && ["working", "reminder", "resting", "away", "recovered"].includes(s.phase) && typeof s.persisted === "boolean"
+    && Array.isArray(s.absences) && s.absences.every(a => !!a && finite(a.startedAt)
+      && (a.endedAt === null || finite(a.endedAt)) && finite(a.elapsedMs) && finite(a.restMs))
     && finite(s.workMs) && finite(s.restMs) && finite(s.nextReminderWorkMs)
     && Array.isArray(s.breaks) && s.breaks.every(b => !!b && finite(b.startedAt)
       && (b.endedAt === null || finite(b.endedAt)) && finite(b.durationMs) && finite(b.workCheckpointMs)
@@ -20,7 +22,14 @@ function isSession(value: unknown, ended: boolean): value is Session {
 }
 export function decodeData(raw: string): PochiData {
   const data: PochiData = JSON.parse(raw);
-  if (!data || data.version !== 1 || !data.settings || !Array.isArray(data.history)
+  if (!data || data.version !== 1 || !data.settings || !Array.isArray(data.history)) throw new Error("記録データの形式を確認できません。");
+  data.settings = { ...defaults, ...data.settings }; data.cards ??= [];
+  const migrate = (s: Session | null) => { if (s && typeof s === "object") { s.absences ??= []; s.persisted ??= true; } };
+  migrate(data.active); data.history.forEach(migrate);
+  if (Array.isArray(data.cards)) data.cards.forEach(c => { if (c && typeof c === "object") migrate(c.session); });
+  if (!Array.isArray(data.cards) || !data.cards.every(c => !!c && typeof c.id === "string"
+    && isSession(c.session, c.session?.endedAt !== null) && ["break", "away"].includes(c.trigger)
+    && finite(c.dueAt) && ["scheduled", "generating", "ready"].includes(c.status) && (c.readyAt === null || finite(c.readyAt)))
     || !data.history.every(s => isSession(s, true)) || !(data.active === null || isSession(data.active, false)))
     throw new Error("記録データの形式を確認できません。");
   checkedSettings(data.settings); return data;
@@ -59,11 +68,18 @@ export class LocalRepository implements Repository {
     const previous = this.storage.getItem(KEY);
     if (previous !== null) {
       // Do not copy a corrupted primary over the valid recovery copy.
-      try { decodeData(previous); this.storage.setItem(BACKUP, previous); } catch (error) {
+      try {
+        const backup = decodeData(previous);
+        if (!data.settings.saveHistory) {
+          backup.active = null;
+          backup.cards = backup.cards.filter(c => c.session.id !== data.active?.id);
+        }
+        this.storage.setItem(BACKUP, JSON.stringify(dataForStorage(backup)));
+      } catch (error) {
         if (error instanceof DOMException) throw error;
       }
     }
-    this.storage.setItem(KEY, JSON.stringify(data));
+    this.storage.setItem(KEY, JSON.stringify(dataForStorage(data)));
   }
   release(): void {
     try { const lease = JSON.parse(this.storage.getItem(LEASE) ?? "null"); if (lease?.owner === this.owner) this.storage.removeItem(LEASE); }

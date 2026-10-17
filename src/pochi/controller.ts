@@ -1,11 +1,11 @@
-import { freshData, reducePochi } from "./model.js";
+import { freshData, reducePochi, settleCards } from "./model.js";
 import type { Command, PochiData, Settings } from "./model.js";
 import { finishMotion, initialMotion, moveTo } from "./animation.js";
 import type { Motion } from "./animation.js";
 import type { Repository } from "./repository.js";
-export type Panel = "home" | "start" | "menu" | "settings" | "reminder" | "rest" | "welcome" | "report" | "recovery" | "quiet";
+export type Panel = "home" | "start" | "menu" | "settings" | "reminder" | "rest" | "welcome" | "report" | "recovery" | "quiet" | "away" | "tasks" | "generating" | "ready";
 export type PochiView = { data: PochiData; panel: Panel; motion: Motion; error: string;
-  notice: string; message: string; closing: boolean; restingDone: boolean; paused: boolean };
+  notice: string; message: string; closing: boolean; restingDone: boolean; paused: boolean; speed: 1 | 60 | 600; noteOpen: boolean };
 export type Clock = { monotonic(): number; wall(): number };
 export class PochiController {
   private listeners = new Set<() => void>();
@@ -14,11 +14,13 @@ export class PochiController {
   private lastWall = 0;
   private lastSave = 0;
   private enabled = false;
+  private logicalNow: number;
   constructor(private repository: Repository, private clock: Clock, readonly demo = false,
     private id: () => string = () => crypto.randomUUID(), private notify: (text: string, settings: Settings) => void = () => {}) {
     const { data, notice } = repository.load();
+    this.logicalNow = this.clock.wall();
     this.view = { data: data ?? freshData(), panel: data.active ? "recovery" : "home", motion: initialMotion(),
-      notice, message: "", error: "", closing: false, restingDone: false, paused: false };
+      notice, message: "", error: "", closing: false, restingDone: false, paused: false, speed: demo ? 60 : 1, noteOpen: false };
   }
   subscribe = (callback: () => void) => { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; };
   getSnapshot = () => this.view;
@@ -34,8 +36,10 @@ export class PochiController {
   unmount() { this.enabled = false; this.repository.release(); }
   private apply(command: Command) {
     if (this.view.error) return false;
-    const data = reducePochi(this.view.data, command, this.demo);
+    let data = reducePochi(this.view.data, command);
     if (data === this.view.data) return false;
+    if (command.type === "yes") data = { ...data, cards: data.cards.map(c => c.status === "generating" && !this.view.data.cards.some(old => old.id === c.id)
+      ? { ...c, readyAt: this.clock.wall() + 4200 } : c) };
     this.publish({ data }); this.persist(); return true;
   }
   private motion(pose: "idle" | "rest", action?: Parameters<typeof moveTo>[2]) {
@@ -43,14 +47,16 @@ export class PochiController {
   }
   tick = () => {
     if (!this.enabled) return;
-    const mono = this.clock.monotonic(), now = this.clock.wall();
-    const elapsed = mono - this.lastMono, wallElapsed = now - this.lastWall;
-    this.lastMono = mono; this.lastWall = now;
+    const mono = this.clock.monotonic(), wall = this.clock.wall();
+    const elapsed = mono - this.lastMono, wallElapsed = wall - this.lastWall;
+    this.lastMono = mono; this.lastWall = wall;
     if (this.view.error) return;
     // Timer throttling, sleep and clock changes must not add offline hours to a session.
     if (!this.view.paused && elapsed > 0 && elapsed <= 10_000 && Math.abs(wallElapsed - elapsed) < 2_000) {
+      this.logicalNow = this.demo ? this.logicalNow + elapsed * this.view.speed : wall;
+      const now = this.now();
       const before = this.view.data.active?.phase;
-      const data = reducePochi(this.view.data, { type: "tick", elapsedMs: elapsed, now }, this.demo);
+      const data = reducePochi(this.view.data, { type: "tick", elapsedMs: elapsed * this.view.speed, now });
       if (data !== this.view.data) this.publish({ data });
       if (before === "working" && data.active?.phase === "reminder") {
         this.publish({ panel: ["settings", "report"].includes(this.view.panel) ? this.view.panel : "reminder", message: "" }); this.motion("idle", "reminder");
@@ -58,12 +64,34 @@ export class PochiController {
       }
       const open = data.active?.breaks.find(b => b.endedAt === null);
       if (data.active?.phase === "resting" && open && !this.view.restingDone
-        && open.durationMs >= (this.demo ? 8_000 : data.settings.restMinutes * 60_000)) {
+        && open.durationMs >= data.settings.restMinutes * 60_000) {
         this.publish({ restingDone: true }); this.notify("そろそろ戻る？ 準備ができたら戻ったよを押してね。", data.settings);
       }
     }
+    this.updateCards();
     if (mono - this.lastSave >= 2_000) this.persist();
   };
+  private now() { return this.demo ? this.logicalNow : this.clock.wall(); }
+  private updateCards() {
+    const before = this.view.data.cards;
+    const data = settleCards(this.view.data, this.now(), this.clock.wall());
+    if (data === this.view.data) return;
+    const ready = data.cards.some(c => c.status === "ready" && before.find(old => old.id === c.id)?.status !== "ready");
+    const panel = ready && ["quiet", "away", "welcome", "generating"].includes(this.view.panel) && !this.view.noteOpen ? "ready" : this.view.panel;
+    this.publish({ data, panel }); this.persist();
+  }
+  setSpeed = (speed: 1 | 60 | 600) => { if (this.demo) { this.tick(); this.publish({ speed }); } };
+  demoAdvance = (milliseconds: number) => {
+    if (!this.demo || this.view.error || !Number.isFinite(milliseconds) || milliseconds < 0) return;
+    this.logicalNow += milliseconds;
+    this.apply({ type: "tick", elapsedMs: milliseconds, now: this.now() });
+    if (this.view.data.active?.phase === "reminder") { this.publish({ panel: "reminder" }); this.motion("idle", "reminder"); }
+    this.updateCards();
+  };
+  leave = () => { this.tick(); if (this.apply({ type: "leave", now: this.now() })) { this.publish({ panel: "away", noteOpen: false }); this.motion("rest"); } };
+  finishNote = () => { this.publish({ noteOpen: false, panel: this.view.data.cards.some(c => c.session.id === this.view.data.active?.id && c.status === "ready") ? "ready" : "generating" }); };
+  skipNote = () => { this.note("", ""); this.finishNote(); };
+  openTasks = () => this.publish({ panel: "tasks" });
   setPaused(paused: boolean) {
     if (paused) this.tick();
     this.publish({ paused }); this.lastMono = this.clock.monotonic(); this.lastWall = this.clock.wall(); this.persist();
@@ -76,51 +104,51 @@ export class PochiController {
       this.publish({ panel: "start", message: "" }); this.motion("idle", "record"); return;
     }
     this.publish({ panel: active.phase === "recovered" ? "recovery" : active.phase === "reminder" ? "reminder"
-      : active.phase === "resting" ? "rest" : "menu", message: "" });
+      : active.phase === "resting" ? "rest" : active.phase === "away" ? "away" : "menu", message: "" });
   };
   start(task: string, kind: "work" | "study") {
     this.tick();
-    if (this.apply({ type: "start", task, kind, id: this.id(), now: this.clock.wall() })) {
+    if (this.apply({ type: "start", task, kind, id: this.id(), now: this.now() })) {
       this.publish({ panel: "quiet", message: "記録をはじめたよ。ここで待ってるね。", closing: false }); this.motion("rest");
     }
   }
   accept = () => {
     this.tick();
-    if (this.apply({ type: "yes", now: this.clock.wall(), reason: this.view.data.active?.phase === "reminder" ? "reminder" : "manual" })) {
-      this.publish({ panel: "rest", restingDone: false, message: "" }); this.motion("rest");
+    if (this.apply({ type: "yes", now: this.now(), reason: this.view.data.active?.phase === "reminder" ? "reminder" : "manual" })) {
+      this.publish({ panel: "generating", restingDone: false, message: "", noteOpen: true }); this.motion("rest");
     }
   };
   decline = () => {
     this.tick();
-    if (this.apply({ type: "no", now: this.clock.wall() })) {
+    if (this.apply({ type: "no", now: this.now() })) {
       this.publish({ panel: "quiet", message: "わかったよ。休憩も忘れないでね。あとでまた声をかけるよ。" }); this.motion("rest");
     }
   };
-  note(progress: string, problem: string) { this.apply({ type: "note", progress, problem, now: this.clock.wall() }); }
+  note(progress: string, problem: string) { this.apply({ type: "note", progress, problem, now: this.now() }); }
   returnToWork = () => {
     this.tick();
-    if (this.apply({ type: "return", now: this.clock.wall() })) {
-      this.publish({ panel: "welcome", message: "" }); this.motion("idle", "welcome");
+    if (this.apply({ type: "return", now: this.now() })) {
+      this.publish({ panel: "welcome", message: "", noteOpen: false }); this.motion("idle", "welcome");
     }
   };
   resume = () => {
-    if (this.apply({ type: "resume", now: this.clock.wall() })) { this.publish({ panel: "quiet" }); this.motion("rest"); }
+    if (this.apply({ type: "resume", now: this.now() })) { this.publish({ panel: "quiet" }); this.motion("rest"); }
   };
   continueWork = () => { this.publish({ panel: "quiet", message: "いっしょに、少しずつ。" }); this.motion("rest"); };
   turn = () => { if (this.view.data.active && this.view.data.active.phase !== "working") return; this.motion("idle", "turn_sit"); };
   completeAnimation = (token: number) => { const motion = finishMotion(this.view.motion, token); if (motion !== this.view.motion) this.publish({ motion }); };
   openSettings = () => this.publish({ panel: "settings", message: "" });
   saveSettings(settings: Settings) {
-    this.tick(); this.apply({ type: "settings", settings, now: this.clock.wall() });
+    this.tick(); this.apply({ type: "settings", settings, now: this.now() });
     this.closePanel();
   }
   closePanel = () => {
     const phase = this.view.data.active?.phase;
-    this.publish({ panel: phase === "reminder" ? "reminder" : phase === "resting" ? "rest" : phase === "recovered" ? "recovery" : phase ? "quiet" : "home" });
+    this.publish({ panel: phase === "reminder" ? "reminder" : phase === "resting" ? "rest" : phase === "away" ? "away" : phase === "recovered" ? "recovery" : phase ? "quiet" : "home" });
   };
   openReports = () => this.publish({ panel: "report" });
   end = (closing = false) => {
-    this.tick(); this.apply({ type: "end", now: this.clock.wall() });
+    this.tick(); this.apply({ type: "end", now: this.now() });
     this.publish({ panel: "report", closing, message: "" }); this.motion("idle"); return this.persist();
   };
   checkpoint = () => this.persist();
