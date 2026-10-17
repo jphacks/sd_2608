@@ -1,5 +1,7 @@
 # B-03：顔検出と入力の橋渡し
 
+以下は B-03 時点の記録。B-04 で在席・休憩通知と回答を接続した最新状況は [在席・通知メモ](backend-presence-reminder.md) を参照。
+
 対象：`feat/backend-face-detection`。B-02 を `develop/backend` へ取り込んだ `4eff08f` から分岐。[B担当の計画](backend-development-plan.md) の B-03 に対応する。
 
 ## 実装した範囲

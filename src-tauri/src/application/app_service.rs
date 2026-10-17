@@ -1,5 +1,6 @@
 use super::activity_monitor::ActivityMonitor;
 use super::face_input::{FaceIngress, FaceObservation};
+mod sitting;
 use crate::{
     infrastructure::NativeActivitySource,
     ipc::dto::*,
@@ -11,6 +12,7 @@ use crate::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
+use sitting::refresh_inputs;
 use std::{
     collections::{VecDeque, hash_map::RandomState},
     hash::{BuildHasher, Hash, Hasher},
@@ -47,6 +49,9 @@ struct State {
     fingerprinters: [RandomState; 2],
     activity: Option<ActivitySample>,
     face: FaceIngress,
+    domain: Option<crate::domain::Engine>,
+    activity_error: Option<ActivityError>,
+    report_unavailable: bool,
 }
 type SnapshotPublisher = Arc<dyn Fn(&AppSnapshot) + Send + Sync>;
 pub struct AppService {
@@ -111,6 +116,9 @@ impl AppService {
             fingerprinters: [RandomState::new(), RandomState::new()],
             activity: None,
             face: FaceIngress::default(),
+            domain: None,
+            activity_error: None,
+            report_unavailable: false,
         }));
         let publisher: Arc<Mutex<Option<SnapshotPublisher>>> = Arc::default();
         let weak_state = Arc::downgrade(&state);
@@ -153,7 +161,7 @@ impl AppService {
                         }
                     });
                     apply_activity(&mut state, sample);
-                    refresh_inputs(&mut state, now.elapsed_ms);
+                    refresh_inputs(&mut state, now);
                     state.snapshot.revision = revision;
                     state.snapshot.emitted_at = timestamp;
                     state.snapshot.clone()
@@ -183,6 +191,7 @@ impl AppService {
                 .is_none_or(|age| age > MAX_SAMPLE_AGE_MS)
         }) {
             state.activity = None;
+            state.activity_error = Some(ActivityError::Stale);
         }
         state.activity.clone()
     }
@@ -244,15 +253,21 @@ impl AppService {
                         state.snapshot.runtime.camera,
                         state.snapshot.presence.clone(),
                         state.snapshot.warning.clone(),
+                        state.snapshot.session.clone(),
+                        state.snapshot.reminder.clone(),
+                        state.snapshot.runtime.activity,
                     );
                     if state.snapshot.runtime.phase == RuntimePhase::Running {
-                        refresh_inputs(&mut state, now.elapsed_ms);
+                        refresh_inputs(&mut state, now);
                     }
                     let changed = previous
                         != (
                             state.snapshot.runtime.camera,
                             state.snapshot.presence.clone(),
                             state.snapshot.warning.clone(),
+                            state.snapshot.session.clone(),
+                            state.snapshot.reminder.clone(),
+                            state.snapshot.runtime.activity,
                         );
                     if changed {
                         state.snapshot.revision = revision;
@@ -321,7 +336,7 @@ impl AppService {
                         command,
                         request.request_id.clone(),
                         json!(request),
-                        |_| failure(ErrorCode::StaleReminder, "回答できる休憩通知はありません。"),
+                        |state| self.respond(state, &request),
                     );
                 }
                 Err(error) => Err(error),
@@ -452,13 +467,24 @@ impl AppService {
             .and_then(|n| SafeInt::try_from(n).ok())
             .ok_or_else(internal)?;
         let generation = state.generation.checked_add(1).ok_or_else(internal)?;
-        let now = SafeInt::try_from(self.clock.read().utc_ms).map_err(|_| internal())?;
+        let reading = self.clock.read();
+        let now = SafeInt::try_from(reading.utc_ms).map_err(|_| internal())?;
         self.monitor.stop();
         if let Ok(mut publisher) = self.publisher.lock() {
             *publisher = None;
         }
+        if let Some(engine) = state.domain.as_mut() {
+            let events = engine.stop(crate::domain::Time {
+                utc_ms: reading.utc_ms,
+                elapsed_ms: reading.elapsed_ms,
+            });
+            sitting::handle_events(state, &events);
+        }
         state.activity = None;
         state.face = FaceIngress::default();
+        state.domain = None;
+        state.activity_error = None;
+        state.report_unavailable = false;
         state.generation = generation;
         state.snapshot.revision = revision;
         state.snapshot.emitted_at = now;
@@ -538,7 +564,12 @@ impl AppService {
         state.snapshot.presence =
             AppSnapshot::initial(state.snapshot.runtime_id.clone(), now).presence;
         state.face = FaceIngress::default();
-        refresh_inputs(state, self.clock.read().elapsed_ms);
+        state.domain = Some(crate::domain::Engine::new(sitting::timings(
+            request.profile,
+        )));
+        state.activity_error = None;
+        state.report_unavailable = false;
+        refresh_inputs(state, self.clock.read());
         Ok(())
     }
     fn submit_face(&self, state: &mut State, input: FaceInput) -> DispatchOutcome {
@@ -569,7 +600,7 @@ impl AppService {
                 revision,
             )?;
             if changed {
-                refresh_inputs(state, now.elapsed_ms);
+                refresh_inputs(state, now);
                 state.snapshot.revision = revision;
                 state.snapshot.emitted_at = timestamp;
             }
@@ -584,6 +615,73 @@ impl AppService {
                 result: ApiResult::Failure(error),
                 changed: None,
             },
+        }
+    }
+    fn respond(&self, state: &mut State, request: &RespondReminderRequest) -> ApiResult<Value> {
+        let result = (|| {
+            if state.snapshot.runtime.phase != RuntimePhase::Running {
+                return Err(ApiError::new(
+                    ErrorCode::StaleReminder,
+                    "回答できる休憩通知はありません。",
+                ));
+            }
+            if state.snapshot.runtime.tracking_id.as_ref() != Some(&request.tracking_id) {
+                return Err(ApiError::new(
+                    ErrorCode::StaleTracking,
+                    "監視が更新されています。",
+                ));
+            }
+            let now = self.clock.read();
+            let timestamp = SafeInt::try_from(now.utc_ms).map_err(|_| internal())?;
+            let revision = SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
+                .map_err(|_| internal())?;
+            let before = state.snapshot.clone();
+            refresh_inputs(state, now);
+            if before != state.snapshot {
+                state.snapshot.revision = revision;
+                state.snapshot.emitted_at = timestamp;
+            }
+            if state.snapshot.reminder.as_ref().is_none_or(|reminder| {
+                reminder.id != request.reminder_id || reminder.session_id != request.session_id
+            }) {
+                return Err(ApiError::new(
+                    ErrorCode::StaleReminder,
+                    "この休憩通知は回答済み、または失効しています。",
+                ));
+            }
+            let revision = SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
+                .map_err(|_| internal())?;
+            let engine = state.domain.as_mut().ok_or_else(internal)?;
+            let reminder = engine.visible_reminder().cloned().ok_or_else(internal)?;
+            let events = engine
+                .answer(
+                    reminder.session_id,
+                    reminder.id,
+                    match request.answer {
+                        Answer::Yes => crate::domain::Answer::Yes,
+                        Answer::No => crate::domain::Answer::No,
+                    },
+                    crate::domain::Time {
+                        utc_ms: now.utc_ms,
+                        elapsed_ms: now.elapsed_ms,
+                    },
+                )
+                .map_err(|_| {
+                    ApiError::new(ErrorCode::StaleReminder, "この休憩通知は失効しています。")
+                })?;
+            sitting::handle_events(state, &events);
+            sitting::project(state);
+            state.snapshot.revision = revision;
+            state.snapshot.emitted_at = timestamp;
+            // B-06 未接続：回答だけを受け付け、ジョブ・カードの作成成功を返さない。
+            Ok(RespondReminderResult {
+                snapshot: state.snapshot.clone(),
+                report_id: None,
+            })
+        })();
+        match result {
+            Ok(value) => response(value),
+            Err(error) => ApiResult::Failure(error),
         }
     }
     pub fn stop_for_lifecycle(&self) -> Result<Option<AppSnapshot>, ApiError> {
@@ -621,6 +719,7 @@ fn apply_activity(state: &mut State, sample: Result<ActivitySample, ActivityErro
             }
             let unavailable = sample.reading.idle_ms.is_none()
                 || sample.reading.foreground == Foreground::Unavailable;
+            state.activity_error = unavailable.then_some(ActivityError::Unavailable);
             state.snapshot.runtime.activity = if unavailable {
                 ActivityPhase::Error
             } else {
@@ -636,6 +735,7 @@ fn apply_activity(state: &mut State, sample: Result<ActivitySample, ActivityErro
             state.activity = Some(sample);
         }
         Err(error) => {
+            state.activity_error = Some(error);
             state.snapshot.runtime.activity = ActivityPhase::Error;
             state.snapshot.presence.reason = if error == ActivityError::Stale {
                 PresenceReason::StaleSample
@@ -646,58 +746,6 @@ fn apply_activity(state: &mut State, sample: Result<ActivitySample, ActivityErro
         }
     }
 }
-fn refresh_inputs(state: &mut State, elapsed_ms: u64) {
-    state.face.expire(elapsed_ms);
-    state.snapshot.runtime.camera = state.face.phase();
-    state.snapshot.presence.value = Presence::Unknown;
-    state.snapshot.presence.face_missing_since = None;
-    state.snapshot.presence.away_detected_at = None;
-    let protected = state
-        .activity
-        .as_ref()
-        .is_some_and(|s| s.reading.foreground == Foreground::Restricted);
-    state.snapshot.presence.reason = if protected {
-        PresenceReason::ProtectedScreen
-    } else if state.face.is_stale() {
-        PresenceReason::StaleSample
-    } else if state.snapshot.runtime.activity == ActivityPhase::Error
-        || matches!(state.face.phase(), CameraPhase::Error | CameraPhase::Off)
-    {
-        PresenceReason::SensorUnavailable
-    } else {
-        PresenceReason::MissingInput
-    };
-    let label = if state.face.source == Some(FaceSource::Manual) {
-        "手動テスト（カメラ不使用）："
-    } else {
-        ""
-    };
-    let detail = if state.snapshot.runtime.activity == ActivityPhase::Error {
-        "PC 情報の全部または一部を取得できません。"
-    } else if state.face.is_stale() {
-        "顔入力の更新が止まっています。停止してから再開してください。"
-    } else if matches!(state.face.phase(), CameraPhase::Error | CameraPhase::Off) {
-        match state.face.unavailable {
-            Some(UnavailableReason::Denied) => "カメラの権限を確認して、停止後に再開してください。",
-            Some(UnavailableReason::Stopped) => "カメラの取得は停止しています。",
-            _ => "カメラまたは顔検出を利用できません。停止後に再開してください。",
-        }
-    } else if let Some(sample) = &state.face.latest {
-        if sample.face_detected {
-            "顔ありの入力を受信しています。"
-        } else {
-            "顔なしの入力を受信しています。"
-        }
-    } else {
-        "カメラからの顔入力を待っています。"
-    };
-    state.snapshot.warning = Some(ApiError::new(
-        ErrorCode::InvalidState,
-        &format!(
-            "{label}{detail} 在席判定・履歴保存・休憩通知・レポートは未接続です（B-04〜07）。"
-        ),
-    ));
-}
 fn activity_unavailable() -> ApiError {
     ApiError::new(
         ErrorCode::Internal,
@@ -705,5 +753,7 @@ fn activity_unavailable() -> ApiError {
     )
 }
 
+#[cfg(test)]
+mod sitting_tests;
 #[cfg(test)]
 mod tests;

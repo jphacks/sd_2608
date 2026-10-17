@@ -1,7 +1,7 @@
 use super::*;
 use crate::ports::clock::ClockReading;
 
-struct FakeClock(AtomicU64);
+pub(super) struct FakeClock(pub(super) AtomicU64);
 impl Clock for FakeClock {
     fn read(&self) -> ClockReading {
         ClockReading {
@@ -21,7 +21,7 @@ fn service() -> (AppService, Arc<FakeClock>) {
         clock,
     )
 }
-fn snapshot(service: &AppService) -> AppSnapshot {
+pub(super) fn snapshot(service: &AppService) -> AppSnapshot {
     match service
         .dispatch("main", Command::AppGetSnapshot, None)
         .result
@@ -30,7 +30,7 @@ fn snapshot(service: &AppService) -> AppSnapshot {
         result => panic!("{result:?}"),
     }
 }
-fn error_code(outcome: DispatchOutcome) -> ErrorCode {
+pub(super) fn error_code(outcome: DispatchOutcome) -> ErrorCode {
     match outcome.result {
         ApiResult::Failure(error) => error.code,
         _ => panic!("expected error"),
@@ -265,7 +265,7 @@ fn start_request(id: &str) -> Value {
     json!({"requestId":id,"profile":"normal","expectedSettingsRevision":0,"reportMode":"local",
         "consent":{"activity":true,"history":true,"externalReport":false}})
 }
-fn external() -> crate::ports::activity::ActivityReading {
+pub(super) fn external() -> crate::ports::activity::ActivityReading {
     crate::ports::activity::ActivityReading {
         idle_ms: Some(90_000),
         foreground: Foreground::External(crate::ports::activity::WindowInfo {

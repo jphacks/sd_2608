@@ -41,7 +41,7 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri 起動は実 IPC で停止中の状態と空一覧を表示し、同意後に PC 情報と顔の有無を取得する（[B-03 メモ](backend-face-detection.md)）。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発でき、本番の在席判定・通知・レポートは後続作業。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri は実 IPC で停止中の状態と空一覧を表示し、同意後に PC 情報と顔の有無から在席・休憩通知を判定する（[B-04 メモ](backend-presence-reminder.md)）。開発用の手動顔入力は demo の短縮時間を使う。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発でき、履歴保存・レポートは後続作業。
 
 ## 3. 並行開発用に追加する環境
 

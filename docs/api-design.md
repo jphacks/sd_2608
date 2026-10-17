@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：B-01 の通信基盤、B-02 の PC 取得、B-03 の顔検出と入力受付を実装済み。runtime_start の成功後にカメラを開始し、camera=waiting / running / error を更新する。presence は unknown のままで、判定・保存・生成は後続作業。詳細は [B-01 メモ](backend-runtime-contract.md)・[B-02 メモ](backend-pc-activity.md)・[B-03 メモ](backend-face-detection.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
+実装状況：B-01〜03 の通信・PC・顔入力に加え、B-04 の在席・区切り・通知と回答を実装済み。runtime_start 後にカメラを開始し、入力から presence・session・reminder を更新する。履歴固定・保存・レポート生成は後続作業。B-04 時点の Yes は回答受付のみで reportId:null、未生成を明示する。詳細は [B-04 メモ](backend-presence-reminder.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 
