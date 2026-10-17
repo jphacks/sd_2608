@@ -184,10 +184,14 @@ export class AppController {
       const result = await this.mutate("answer", () => this.gateway.respond({
         trackingId: runtime.trackingId!, sessionId: reminder.sessionId, reminderId: reminder.id, answer,
       }), value => value.snapshot);
-      if (result && answer === "yes") {
-        const id = this.state.snapshot?.session?.reportJobId;
+      if (result && answer === "yes" && snapshot.session?.reportJobId) {
+        const id = snapshot.session.reportJobId;
         const finished = this.state.snapshot?.jobs.find(job => job.id === id && (job.status === "ready" || job.status === "failed"));
-        if (finished) await this.openReport(finished.id);
+        if (finished && this.currentReportId() !== id && !this.reportQueue.includes(id)) {
+          this.reportQueue.push(id);
+          this.publish({ queuedReportCount: this.reportQueue.length });
+          this.pumpReportQueue();
+        }
       }
     },
     saveSettings: async input => { await this.mutate("settings", () => this.gateway.updateSettings(input), value => value); },
@@ -197,8 +201,10 @@ export class AppController {
     retryReport: async () => {
       const panel = this.state.report;
       if (panel.phase !== "ready" || panel.report.status !== "failed") return;
-      if (await this.mutate("retry", () => this.gateway.retryReport({ reportId: panel.report.id, expectedAttempt: panel.report.attempt }), value => value))
-        this.publish({ report: { phase: "loading", reportId: panel.report.id } });
+      if (await this.mutate("retry", () => this.gateway.retryReport({ reportId: panel.report.id, expectedAttempt: panel.report.attempt }), value => value)) {
+        const finished = this.state.snapshot?.jobs.some(job => job.id === panel.report.id && job.attempt > panel.report.attempt && (job.status === "ready" || job.status === "failed"));
+        if (!finished) this.publish({ report: { phase: "loading", reportId: panel.report.id } });
+      }
     },
     refreshReports: () => this.refreshReports(),
     clearData: async () => {

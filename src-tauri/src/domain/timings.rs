@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, Debug)]
 pub struct Timings {
     pub absence_ms: u64,
+    pub report_delay_ms: u64,
     pub first_ms: u64,
     pub first_limit_ms: u64,
     pub snooze_ms: u64,
@@ -16,6 +17,7 @@ pub const FRESH_MS: u64 = 5_000;
 impl Timings {
     pub const NORMAL: Self = Self {
         absence_ms: 30_000,
+        report_delay_ms: 5 * 60_000,
         first_ms: 30 * 60_000,
         first_limit_ms: 35 * 60_000,
         snooze_ms: 10 * 60_000,
@@ -29,6 +31,7 @@ impl Timings {
     };
     pub const DEMO: Self = Self {
         absence_ms: 5_000,
+        report_delay_ms: 5_000,
         first_ms: 30_000,
         first_limit_ms: 35_000,
         snooze_ms: 10_000,

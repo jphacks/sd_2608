@@ -6,6 +6,9 @@ pub mod history;
 mod history_tests;
 pub mod presence;
 pub mod reminder;
+pub mod report;
+#[cfg(test)]
+mod report_tests;
 pub mod session;
 pub mod timings;
 use boundary::BoundaryPolicy;

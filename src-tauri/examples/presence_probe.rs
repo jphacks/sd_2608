@@ -64,11 +64,10 @@ fn main() {
                         json!({"requestId":format!("probe-answer-{sequence}"),"trackingId":tracking,"sessionId":reminder.session_id,"reminderId":reminder.id,"answer":if hard {"yes"} else {"no"}}),
                     ),
                 );
-                assert!(reply["reportId"].is_null());
-                assert!(reply["snapshot"]["jobs"].as_array().unwrap().is_empty());
+                assert_eq!(reply["reportId"].is_string(), hard);
                 println!(
-                    "answer={} report_created=false",
-                    if hard { "yes" } else { "no" }
+                    "answer={} report_requested={hard}",
+                    if hard { "yes" } else { "no" },
                 );
                 if hard {
                     hard_seen = true;
@@ -89,7 +88,5 @@ fn main() {
         hard_seen && no_count > 0,
         "demo did not reach repeated No and the hard limit; inspect sensor availability"
     );
-    println!(
-        "PASS: present, reminders, No postponement, hard limit, Yes without fake report, stop"
-    );
+    println!("PASS: present, reminders, No postponement, hard limit, Yes job accepted, stop");
 }

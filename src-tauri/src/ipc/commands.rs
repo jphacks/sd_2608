@@ -40,12 +40,22 @@ pub fn app_get_snapshot<R: Runtime>(
 macro_rules! request_command {
     ($name:ident, $command:ident) => {
         #[tauri::command]
-        pub fn $name<R: Runtime>(
+        pub async fn $name<R: Runtime>(
             window: WebviewWindow<R>,
-            service: State<'_, AppService>,
             request: Option<Value>,
         ) -> ApiResult<Value> {
-            dispatch(window, service, Command::$command, request)
+            let app = window.app_handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let service = app.state::<AppService>();
+                dispatch(window, service, Command::$command, request)
+            })
+            .await
+            .unwrap_or_else(|_| {
+                ApiResult::Failure(super::dto::ApiError::new(
+                    super::dto::ErrorCode::Internal,
+                    "操作を完了できません。",
+                ))
+            })
         }
     };
 }

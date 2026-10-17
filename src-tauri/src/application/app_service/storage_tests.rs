@@ -45,10 +45,9 @@ fn saved_settings_and_cards_restore_into_stopped_runtime_and_clear_preserves_key
     assert!(expected.has_api_key);
     assert_eq!(expected.revision.get(), 1);
     first
-        .state
+        .persistence
         .lock()
         .unwrap()
-        .persistence
         .save_report(report(1, 1_000_000), 1_000_000)
         .unwrap();
     drop(first);
@@ -186,4 +185,5 @@ fn clear_save_failure_still_stops_and_advances_generation_before_reporting_failu
     assert_eq!(view.runtime.phase, RuntimePhase::Stopped);
     assert_eq!(view.warning.unwrap().code, ErrorCode::StorageFailure);
     assert_eq!(service.state.lock().unwrap().generation, 1);
+    assert_eq!(view.revision.get(), 2); // 停止の観測後にも、削除失敗の警告を新しい revision で配る。
 }
