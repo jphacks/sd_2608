@@ -27,3 +27,22 @@ test("姿勢遷移の割り込みは現在の遷移を完了し、古い再生�
   const down=finishMotion(interrupted,rise.token); assert.equal(down.id,"sit_to_rest");
   assert.equal(finishMotion(down,rise.token),down); assert.equal(finishMotion(down,down.token).id,"rest");
 });
+
+test("PR #5の7個のGIFを原本のハッシュどおり取り込み、既存Motionの表示だけに対応する", async () => {
+  const { createHash } = await import("node:crypto");
+  const { gifForMotion } = await fromBuild("pochi/gifPresentation.js");
+  const references = JSON.parse(fs.readFileSync("src/pochi/reference-gifs.json", "utf8"));
+  assert.equal(Object.keys(references).length, 7);
+  for (const [id, reference] of Object.entries(references)) {
+    const bytes = fs.readFileSync(`public${reference.src}`);
+    assert.match(bytes.subarray(0, 6).toString(), /^GIF8[79]a$/);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), reference.sha256);
+    assert.equal(gifForMotion(id), reference.src);
+  }
+  assert.equal(gifForMotion("sit_to_rest"), null);
+  for (const id of ["reminder", "record", "welcome", "turn_sit", "rest_to_sit"]) {
+    const spec = animationSpec(id);
+    assert.equal(spec.loop, false, `${id}はmainどおり一度だけ再生`);
+    assert.equal(frameAt(id, spec.durations.reduce((a,b) => a+b, 0)).done, true);
+  }
+});
