@@ -18,6 +18,7 @@ pub struct FaceIngress {
     pub unavailable: Option<UnavailableReason>,
     last_sequence: u64,
     last_observed: Option<u64>,
+    last_received: Option<ClockReading>,
     receipts: VecDeque<(SafeInt, [u64; 2], FaceReceipt)>,
     stale: bool,
 }
@@ -69,10 +70,18 @@ impl FaceIngress {
                 Err(ApiError::validation())
             };
         }
+        let clock_changed = self.last_received.is_some_and(|last| {
+            now.utc_ms < last.utc_ms
+                || ((now.utc_ms as i128 - last.utc_ms as i128)
+                    - (now.elapsed_ms as i128 - last.elapsed_ms as i128))
+                    .abs()
+                    > 2_000
+        });
         if sequence.get() <= self.last_sequence
-            || self
-                .last_observed
-                .is_some_and(|last| observed_at.get() < last)
+            || (!clock_changed
+                && self
+                    .last_observed
+                    .is_some_and(|last| observed_at.get() < last))
             || self.source.is_some_and(|previous| previous != source)
             || now.utc_ms.saturating_sub(observed_at.get()) > 5_000
             || observed_at.get().saturating_sub(now.utc_ms) > 2_000
@@ -98,6 +107,7 @@ impl FaceIngress {
         self.stale = false;
         self.last_sequence = sequence.get();
         self.last_observed = Some(observed_at.get());
+        self.last_received = Some(now);
         let receipt = FaceReceipt {
             accepted_sequence: sequence,
             snapshot_revision: revision,

@@ -57,6 +57,7 @@ test("削除前に開始したカード読込が遅れても復活しない", as
   pending.resolve({ ok: true, data: createReport("old-report") }); await reading;
   assert.equal(controller.getState().report.phase, "closed");
   assert.deepEqual(controller.getState().reportList, []);
+  assert.equal(controller.getState().motion.after, "rest");
 });
 
 test("停止中の古い非同期完了と旧 revision は新状態を巻き戻さない", async () => {
@@ -168,4 +169,86 @@ test("connect の正本取得後に到着した新しい runtime は受信順に
   const controller = new AppController(gateway); await controller.connect();
   assert.equal(controller.getState().snapshot.runtimeId, "restarted");
   assert.equal(controller.getState().snapshot.revision, 2);
+});
+
+test("Yesは休憩状態へ切り替えず、レポートを一件作成して完成後に表示する", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("reminder");
+  const controller = new AppController(gateway); await controller.connect();
+  const before = controller.getState().snapshot.session;
+  await Promise.all([controller.actions.answer("yes"), controller.actions.answer("yes")]);
+  assert.equal(controller.getState().snapshot.presence.value, "present");
+  assert.equal(controller.getState().snapshot.session.id, before.id);
+  assert.equal(controller.getState().snapshot.session.elapsedMs, before.elapsedMs);
+  assert.equal(controller.getState().snapshot.jobs.length, 1);
+  assert.equal(controller.getState().bubble, null);
+  gateway.advanceBy(2_000); await flush();
+  assert.equal(controller.getState().report.phase, "ready");
+  assert.equal(controller.getState().motion.id, "record");
+  await controller.dispose();
+});
+
+test("通知演出は毎秒や強調更新で再開せず、古い再生完了は計測・レポートを変えない", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("reminder");
+  const controller = new AppController(gateway); await controller.connect();
+  const motion = controller.getState().motion;
+  gateway.advanceBy(1_000);
+  assert.deepEqual(controller.getState().motion, motion);
+  controller.actions.completeAnimation(motion.token - 1);
+  assert.deepEqual(controller.getState().motion, motion);
+  assert.equal(controller.getState().snapshot.jobs.length, 0);
+  assert.ok(controller.getState().bubble);
+  await controller.dispose();
+});
+
+test("終了は停止成功後だけcloseし、失敗時はエラーを残して再操作できる", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("working");
+  const calls = [];
+  gateway.window = { close: async () => calls.push("close"), pin: async value => calls.push(value),
+    drag: async () => calls.push("drag"), place: async () => calls.push("place") };
+  const controller = new AppController(gateway); await controller.connect();
+  const stop = gateway.stop.bind(gateway);
+  gateway.stop = async () => ({ ok: false, error: { code: "internal", message: "停止失敗", retryable: true } });
+  await controller.actions.closeApp();
+  assert.deepEqual(calls, []); assert.equal(controller.getState().error.message, "停止失敗");
+  gateway.stop = async id => { calls.push("stop"); return stop(id); };
+  await controller.actions.moveWindow(); await controller.actions.pinWindow(false); await controller.actions.placeWindow();
+  await controller.actions.closeApp();
+  assert.deepEqual(calls, ["drag", false, "place", "stop", "close"]);
+  assert.equal(controller.getState().snapshot.runtime.phase, "stopped");
+  await controller.dispose();
+});
+
+test("同一セッションで再度Yesを選ぶと保存済みカードを一度だけ再表示する", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("reminder");
+  const controller = new AppController(gateway); await controller.connect();
+  await controller.actions.answer("yes"); gateway.advanceBy(2_000); await flush();
+  const reportId = controller.getState().report.report.id;
+  controller.actions.closeReport(); gateway.advanceBy(10 * MINUTE);
+  await controller.actions.answer("yes"); await flush();
+  assert.equal(controller.getState().report.report.id, reportId);
+  assert.equal(controller.getState().snapshot.jobs.length, 1);
+  assert.equal(controller.getState().queuedReportCount, 0);
+  await controller.dispose();
+});
+
+test("runtime切替後の新しい操作を、旧操作の遅いfinallyで解除しない", async () => {
+  const gateway = new MockGateway(); let receive;
+  gateway.connect = async callback => { receive = callback; return createSnapshot(); };
+  const old = deferred(), current = deferred(); let calls = 0;
+  gateway.start = () => ++calls === 1 ? old.promise : current.promise;
+  const controller = new AppController(gateway); await controller.connect();
+  const first = controller.actions.start({});
+  const oldToken = controller.getState().motion.token;
+  const restarted = { ...createSnapshot(), runtimeId: "restarted", revision: 0 };
+  receive(restarted);
+  const newMotion = controller.getState().motion;
+  controller.actions.completeAnimation(oldToken);
+  assert.deepEqual(controller.getState().motion, newMotion);
+  const second = controller.actions.start({});
+  old.resolve({ ok: true, data: createSnapshot() }); await first;
+  assert.equal(controller.getState().pending, "start");
+  current.resolve({ ok: true, data: { ...restarted, revision: 1 } }); await second;
+  assert.equal(controller.getState().pending, null);
+  assert.equal(controller.getState().snapshot.runtimeId, "restarted");
+  await controller.dispose();
 });

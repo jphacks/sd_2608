@@ -1,52 +1,45 @@
-# サンプル（プロダクト名）
+# ポチ · 休憩のおとも
 
-## 開発者向け
+Windows 上の顔の有無と PC 操作情報から連続在席を計測し、休憩を提案する Tauri / React アプリです。通知の **Yes は作業レポートを即時作成**します。自然離席では確定から5分後に作成し、帰席しても予約を維持します。
 
-表示担当は `npm ci` → `npm run dev:mock` で、実センサー・API なしの開発画面を開けます。
-共通型・操作の接続口・phase3 までのシナリオ・GIF の差し替え方法は、[表示開発ガイド](docs/ui-development.md) を参照してください。
-確認コマンドは `npm test` と `npm run build` です。
-`npm run tauri dev` では、同意して開始すると PC 情報と顔の有無から在席・休憩通知を判定し、マスク済みの作業履歴を保持します。Yes または離席確定の5分後にカードを作成・表示します。ローカル履歴のほか、接続先・モデル・キーを設定し送信に同意すると Gemini／OpenAI互換APIで要約できます。顔モデル・WASM は同梱し、設定と保存済みカードを復元できます。
-[B-01 の接続基盤](docs/backend-runtime-contract.md) / [B-02 のPC情報取得](docs/backend-pc-activity.md) / [B-03 の顔検出](docs/backend-face-detection.md) / [B-04 の在席・通知と検証](docs/backend-presence-reminder.md)
+```powershell
+npm ci
+npm run tauri dev
+```
 
-[B-05 の履歴・設定・保存と検証](docs/backend-history-storage.md)
+起動時は監視オフです。ポチの「作業を記録」から取得・記録に同意して開始します。AI 未設定・未同意なら「ローカル履歴で開始」または「AI 送信せず開始」を使えます。AI は停止中の設定で接続先・モデル・キーを保存し、開始時に送信先へ同意します。
 
-[B-06 のレポート・5分予約と検証](docs/backend-report-coordinator.md)
+- [B-08／B-09 の実装・検証記録とデモ手順](docs/backend-integration.md)
+- [表示とアニメーションの構成](docs/pochi-typescript.md)
+- [表示開発ガイド](docs/ui-development.md)
+- [機能仕様](docs/requirements.md) / [バックエンド計画](docs/backend-development-plan.md)
 
-[B-07 のAI接続・同意・失敗と再試行](docs/backend-ai-provider.md)（ローカルHTTP検証。実サービス検証は別途）
+通常のブラウザー起動 (`npm run dev`) は Tauri 起動案内です。`npm run dev:mock` は実カメラ・PC 取得・外部送信をしない表示開発環境です。A の表示も本番と同じ AppController／AppGateway に接続しています。
 
-[開発計画・設計書](docs/development-plan.md)
+## 単体アプリと短縮デモ
 
-[![IMAGE ALT TEXT HERE](https://jphacks.com/wp-content/uploads/2026/07/IMG_5316.png)](https://www.youtube.com/watch?v=piaNsc6ilBI)
+Windows の MSVC / Rust / WebView2 Runtime が必要です。顔モデルと WASM は同梱し、起動時の CDN ダウンロードはありません。
 
-## 製品概要
-### 背景(製品開発のきっかけ、課題等）
-### 製品説明（具体的な製品の説明）
-### 特長
-#### 1. 特長1
-#### 2. 特長2
-#### 3. 特長3
+```powershell
+npm run desktop:build
+# src-tauri/target/release/sd_2608.exe（開発サーバー不要）
 
-### 解決出来ること
-### 今後の展望
-### 注力したこと（こだわり等）
-* 
-* 
+npm run desktop:demo
+# 実 PC 情報＋手動顔入力、30〜35秒で通知、離席確定後5秒で作成
 
-## 開発技術
-### 活用した技術
-#### API・データ
-* 
-* 
+npm run desktop:build:demo
+# 同じ出力パスに短縮デモの EXE を作成
+```
 
-#### フレームワーク・ライブラリ・モジュール
-* 
-* 
+両ビルドは同じ EXE パスを使うため、同時には実行せず、配布時は別名でコピーしてください。インストーラーは `npm run tauri build` で作成できます。実 API の確認・実カメラ・ロック／スリープ・Windows 表示倍率の確認状況は、上記の検証記録に分けて記載します。
 
-#### デバイス
-* 
-* 
+## 検証
 
-### 独自技術
-#### ハッカソンで開発した独自機能・技術
-* 独自で開発したものの内容をこちらに記載してください
-* 特に力を入れた部分をファイルリンク、またはcommit_idを記載してください。
+```powershell
+npm test
+npm run build
+cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+```
+
+過去の B-01〜07 の実装・検証メモは `docs/backend-*.md` にあります。`handoff/pochi-ja/` は A の旧手動フローと C# 版の参考アーカイブで、現在の起動・配布物ではありません。

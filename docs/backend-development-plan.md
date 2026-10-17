@@ -16,6 +16,7 @@
 - B-05 の履歴・マスク・設定保存・キー保護・保存カード参照を実装し、develop/backend へ取り込み済み。[B-05 メモ](backend-history-storage.md) を参照。
 - B-06 のローカルカード生成・離席5分予約・重複防止・再試行・表示キュー接続を実装し、develop/backendへ取り込み済み。[B-06 メモ](backend-report-coordinator.md) を参照。
 - B-07 の Gemini／OpenAI互換API、送信同意、失敗カード・明示的再試行を実装した。[B-07 メモ](backend-ai-provider.md) にローカル検証と未実施の実サービス確認を区別して記載。復帰処理と実機統合は B-08／09 の後続作業。
+- B-08 の軽量な復帰・時計変更対応と、B-09 の A 表示・WindowAdapter・短縮デモを実装した。[B-08／B-09 メモ](backend-integration.md) に自動テスト・ブラウザー確認・残る実機確認を分けて記録。PochiController を廃止し、Yes は既存 AppController の即時レポート作成に統一した。
 
 B担当の完成目標は、実 Windows アプリで次の操作が通ること。
 
@@ -241,6 +242,6 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 | M2：ローカルのレポート | B-05〜06 | Yes と離席後の両経路で、帰席条件なしに履歴カードが表示される |
 | M3：AI・停止・実機統合 | B-07〜09 | AI 要約、失敗、保存、停止・復帰、A の表示まで通る |
 
-直近の次の作業は **B-07：`feat/backend-ai-provider`**。B-06 を develop/backend へ取り込んだ後、その最新地点から分岐する。ローカル生成・予約・保存競合と残る実機確認は [B-06 の実装・検証メモ](backend-report-coordinator.md) を参照。
+現在の作業は **B-08／B-09：`test/backend-integration`**。B-07 を develop/backend に取り込み、A の main をマージして接続した。残る実カメラ・ロック／スリープ・DPI・実 API の確認は [統合・デモの検証メモ](backend-integration.md) を参照。
 
 残り時間が厳しい場合も、顔・PC 情報・通知・Yes／自然離席のローカルカード・停止を優先する。AI の接続先を増やす、姿勢や日次記録へ着手する、といった拡張より、両経路を実演できる状態を先に確保する。

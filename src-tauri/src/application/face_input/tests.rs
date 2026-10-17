@@ -166,3 +166,16 @@ fn receipt_cache_is_bounded_and_evicted_sequences_cannot_be_reused() {
             .1
     );
 }
+
+#[test]
+fn wall_clock_rollback_accepts_fresh_sequences_but_still_rejects_stale_input() {
+    let mut ingress = FaceIngress::default();
+    accept(&mut ingress, &sample(1, 100_000), 100_000, 0, 1).unwrap();
+    // UTC だけを戻す。monotonic は進み、新しいサンプルを受け付ける。
+    accept(&mut ingress, &sample(2, 10_000), 10_000, 1_000, 2).unwrap();
+    accept(&mut ingress, &sample(3, 11_000), 11_000, 2_000, 3).unwrap();
+    assert_eq!(ingress.latest.as_ref().unwrap().sequence, 3);
+    assert!(accept(&mut ingress, &sample(4, 10_500), 12_000, 3_000, 4).is_err());
+    assert!(accept(&mut ingress, &sample(5, 100_000), 12_000, 3_000, 4).is_err());
+    assert_eq!(ingress.latest.as_ref().unwrap().sequence, 3);
+}

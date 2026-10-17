@@ -8,6 +8,7 @@ import type { FaceCapture, FaceCaptures } from "../../ports/FaceCapture.js";
 import { DecodeError, decodeCommandResult, snapshotDecoder } from "./decode.js";
 import { browserEnvironment } from "./transport.js";
 import type { GatewayEnvironment, IpcTransport, Unsubscribe } from "./transport.js";
+import type { WindowAdapter } from "../../ports/WindowAdapter.js";
 
 type SnapshotMutation = "runtime_start" | "runtime_stop" | "settings_update" | "report_retry" | "data_clear";
 type Connection = {
@@ -35,7 +36,8 @@ export class TauriGateway implements AppGateway, FaceInputPort {
   private captureEpoch = 0;
   private starting = false;
   constructor(private readonly transport: IpcTransport, private readonly environment: GatewayEnvironment = browserEnvironment,
-    private readonly captures?: FaceCaptures) {}
+    private readonly captures?: FaceCaptures, readonly window?: WindowAdapter,
+    private readonly manualDemo = false) {}
   private releaseCapture(): void {
     ++this.captureEpoch;
     const capture = this.capture; this.capture = null;
@@ -142,7 +144,9 @@ export class TauriGateway implements AppGateway, FaceInputPort {
     if (result.ok && connection && this.current(connection)) this.adopt(connection, result.data, "read");
     return result;
   }
-  start(input: Omit<StartRuntimeRequest, "requestId">) { return this.startCapture(input, "camera"); }
+  start(input: Omit<StartRuntimeRequest, "requestId">) {
+    return this.manualDemo ? this.startManual(input) : this.startCapture(input, "camera");
+  }
   startManual(input: Omit<StartRuntimeRequest, "requestId">) {
     if (input.profile !== "demo" || !this.captures?.manual) return Promise.resolve(failure<AppSnapshot>(error("permissionDenied", "手動入力はデモ用の明示的な開始だけで利用できます。", false)));
     return this.startCapture(input, "manual");

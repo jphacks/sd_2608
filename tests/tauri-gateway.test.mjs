@@ -220,3 +220,31 @@ test("通常モードの手動開始を拒否し、demoでは手動ソースだ�
   f.gateway.setManualFaceDetected(true); assert.equal(f.manual.detected, true);
   await f.gateway.dispose(); assert.equal(f.manual.stops, 1);
 });
+
+test("統合したYes／NoをAppControllerから実GatewayのIPC契約へ渡し、完成イベントからカードを表示する", async () => {
+  const { MockGateway } = await fromBuild("adapters/mock/MockGateway.js");
+  for (const answer of ["yes", "no"]) {
+    const backend = new MockGateway(); backend.loadScenario("reminder");
+    const original = backend.getSnapshot();
+    const { gateway, transport } = setup();
+    transport.handler = (command, args) => {
+      if (command === "app_get_snapshot") return success(backend.getSnapshot());
+      if (command === "reminder_respond") return backend.respond(args.request);
+      if (command === "report_list") return backend.listReports(args.request);
+      if (command === "report_get") return backend.getReport(args.request.reportId);
+      if (command === "runtime_stop") return backend.stop(args.request.trackingId);
+      return failure();
+    };
+    const controller = new AppController(gateway); await controller.connect();
+    await controller.actions.answer(answer);
+    const request = transport.calls.find(call => call.command === "reminder_respond").args.request;
+    assert.deepEqual(request, { requestId: "request-1", trackingId: original.runtime.trackingId,
+      sessionId: original.reminder.sessionId, reminderId: original.reminder.id, answer });
+    assert.equal(controller.getState().snapshot.presence.value, "present");
+    assert.equal(controller.getState().snapshot.jobs.length, answer === "yes" ? 1 : 0);
+    backend.advanceBy(2_000); transport.emit(backend.getSnapshot()); await flush();
+    assert.equal(controller.getState().report.phase, answer === "yes" ? "ready" : "closed");
+    if (answer === "yes") assert.equal(controller.getState().report.report.trigger, "yes");
+    await controller.dispose();
+  }
+});

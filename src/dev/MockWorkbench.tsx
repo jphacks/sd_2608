@@ -1,18 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MockGateway } from "../adapters/mock/MockGateway.js";
 import { useAppController } from "../application/useAppController.js";
-import { AppView } from "../components/AppView.js";
+import PochiApp from "../pochi/PochiApp.js";
 import { scenarios } from "../contracts/fixtures.js";
 import type { ScenarioId } from "../contracts/fixtures.js";
-import type { PetAnimationId } from "../contracts/presentation.js";
+import { initialMotion, moveTo } from "../pochi/animation.js";
+import type { ActionId } from "../pochi/animation.js";
 import { petManifest } from "../presentation/petManifest.js";
 import "./mock-workbench.css";
 
 export default function MockWorkbench() {
   const gateway = useMemo(() => new MockGateway(), []);
   const { state, actions } = useAppController(gateway);
-  const [scenario, setScenario] = useState<ScenarioId>("stopped");
-  const [preview, setPreview] = useState<{ animation: PetAnimationId; token: number } | null>(null);
+  const windowPreview = new URLSearchParams(location.search).get("window") === "1";
+  const [scenario, setScenario] = useState<ScenarioId>(() => {
+    const requested = new URLSearchParams(location.search).get("scenario");
+    return scenarios.find(value => value.id === requested)?.id ?? "stopped";
+  });
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (state.connection === "connected" && !initialized.current) {
+      initialized.current = true; gateway.loadScenario(scenario);
+    }
+  }, [state.connection, gateway, scenario]);
+  const [preview, setPreview] = useState<{ animation: ActionId; token: number } | null>(null);
   const selected = scenarios.find(candidate => candidate.id === scenario)!;
   const loadScenario = async (value: ScenarioId) => {
     if (state.pending || state.connection !== "connected") return;
@@ -20,10 +31,9 @@ export default function MockWorkbench() {
     await actions.clearData();
     gateway.loadScenario(value);
   };
-  const viewState = preview ? { ...state, pet: { ...state.pet, animation: preview.animation,
-    pose: petManifest[preview.animation].finalPose, playbackToken: `preview-${preview.token}`, greeting: preview.animation === "welcome" ? "おかえりなさい！" : null } } : state;
+  const viewState = preview ? { ...state, motion: { ...moveTo(initialMotion(), preview.animation === "rest" ? "rest" : "idle", preview.animation), token: preview.token } } : state;
   return <>
-    <aside className="mock-workbench" aria-label="表示開発用コントロール">
+    <aside hidden={windowPreview} className="mock-workbench" aria-label="表示開発用コントロール">
       <h2>表示開発用モック · カメラ・PC 取得・外部通信なし</h2>
       <label>シナリオ <select value={scenario} disabled={state.pending !== null || state.connection !== "connected"} onChange={event => {
         void loadScenario(event.target.value as ScenarioId);
@@ -37,14 +47,14 @@ export default function MockWorkbench() {
         <button onClick={() => gateway.setPresence("present")}>帰席を確定</button>
         <button onClick={() => gateway.setPresence("unknown")}>取得不能</button>
       </div>
-      <details><summary>7つのアニメーションを個別プレビュー（現在は仮画像）</summary>
-        <div className="actions">{(Object.keys(petManifest) as PetAnimationId[]).map(animation =>
+      <details><summary>採用済みのアニメーションを個別プレビュー</summary>
+        <div className="actions">{(["idle", "reminder", "rest", "record", "welcome", "turn_sit", "rest_to_sit", "sit_to_rest"] as ActionId[]).map(animation =>
           <button key={animation} onClick={() => setPreview({ animation, token: Date.now() })}>{animation}</button>)}
           <button onClick={() => setPreview(null)}>業務状態の表示へ戻る</button>
         </div>
       </details>
       <p>時計は手動です。5分予約は「+1分」を5回、その後「+10秒」で完成します。時間判定は Rust 実装の代替テストではありません。</p>
     </aside>
-    <AppView state={viewState} actions={actions} petManifest={petManifest} />
+    <PochiApp state={viewState} actions={actions} petManifest={petManifest} desktop={windowPreview} />
   </>;
 }
