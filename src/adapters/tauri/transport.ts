@@ -9,6 +9,7 @@ export interface IpcTransport {
 export interface GatewayEnvironment {
   every(milliseconds: number, callback: () => void): Unsubscribe;
   onResume(callback: () => void): Unsubscribe;
+  onUnload?(callback: () => void): Unsubscribe;
   requestId(): string;
 }
 export const browserEnvironment: GatewayEnvironment = {
@@ -20,4 +21,5 @@ export const browserEnvironment: GatewayEnvironment = {
     return () => { window.removeEventListener("focus", callback); document.removeEventListener("visibilitychange", visible); };
   },
   requestId: () => crypto.randomUUID(),
+  onUnload: callback => { window.addEventListener("pagehide", callback); return () => window.removeEventListener("pagehide", callback); },
 };

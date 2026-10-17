@@ -131,7 +131,14 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
     let started = invoke(&main, "runtime_start", start);
     assert_eq!(started["ok"], true);
     assert_eq!(started["data"]["runtime"]["phase"], "running");
-    assert_eq!(started["data"]["runtime"]["camera"], "off");
+    assert_eq!(started["data"]["runtime"]["camera"], "waiting");
+    let face = json!({"request":{"trackingId":started["data"]["runtime"]["trackingId"],"sequence":1,"observedAt":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"source":"camera","kind":"sample","faceDetected":true}});
+    let accepted = invoke(&main, "face_submit", face.clone());
+    assert_eq!(accepted["ok"], true);
+    assert_eq!(accepted["data"]["acceptedSequence"], 1);
+    assert_eq!(invoke(&main, "face_submit", face), accepted);
+    let current = invoke(&main, "app_get_snapshot", json!({}));
+    assert_eq!(current["data"]["runtime"]["camera"], "running");
     assert_eq!(started["data"]["presence"]["value"], "unknown");
     let stopped = invoke(
         &main,

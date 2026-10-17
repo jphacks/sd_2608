@@ -25,7 +25,7 @@ class Transport {
   listen = async (name, listener) => { assert.equal(name, "app://snapshot"); this.order.push("listen"); this.listeners.add(listener); return () => this.listeners.delete(listener); };
   emit(value) { for (const listener of this.listeners) listener(structuredClone(value)); }
 }
-function setup() { const transport = new Transport(); const environment = new Environment(); return { transport, environment, gateway: new TauriGateway(transport, environment) }; }
+function setup(captures) { const transport = new Transport(); const environment = new Environment(); return { transport, environment, gateway: new TauriGateway(transport, environment, captures) }; }
 
 test("購読後に初期状態を取得し、その間のイベントを新しい revision 優先で適用する", async () => {
   const { gateway, transport, environment } = setup();
@@ -136,4 +136,87 @@ test("解除後のポーリング応答は新しい画面に通知しない", as
   const pending = deferred(); transport.handler = () => pending.promise;
   environment.poll(); await gateway.dispose(); pending.resolve(success(snapshot(5))); await flush();
   assert.deepEqual(observed, []); assert.equal(environment.intervals.size, 0);
+});
+
+const startInput = { profile: "normal", expectedSettingsRevision: 0, reportMode: "local", consent: { activity: true, history: true, externalReport: false } };
+class Capture {
+  starts = []; stops = 0; detected = false;
+  start(trackingId, submit) { this.starts.push({ trackingId, submit }); }
+  stop() { this.stops++; }
+  setFaceDetected(value) { this.detected = value; }
+}
+function captureSetup() {
+  const camera = new Capture(); const manual = new Capture(); const f = setup({ camera, manual });
+  let current = snapshot();
+  f.transport.handler = async (command, args) => {
+    if (command === "runtime_start") {
+      current = snapshot(current.revision + 1);
+      current.runtime = { ...current.runtime, phase: "running", trackingId: `tracking-${current.revision}`,
+        profile: args.request.profile, camera: "waiting", activity: "running", consent: args.request.consent };
+      return success(structuredClone(current));
+    }
+    if (command === "runtime_stop") {
+      if (args.request.trackingId !== current.runtime.trackingId) return failure("staleTracking");
+      current = snapshot(current.revision + 1); return success(current);
+    }
+    if (command === "face_submit") return success({ acceptedSequence: args.request.sequence, snapshotRevision: current.revision + 1 });
+    return success(structuredClone(current));
+  };
+  return { ...f, camera, manual };
+}
+test("開始がRustで成功してから同じtrackingIdでカメラを開始し、顔入力をIPCへ送る", async () => {
+  const f = captureSetup(); await f.gateway.connect(() => {});
+  assert.equal(f.camera.starts.length, 0);
+  const result = await f.gateway.start(startInput); assert.equal(result.ok, true);
+  const capture = f.camera.starts[0]; assert.equal(capture.trackingId, result.data.runtime.trackingId);
+  assert.equal(await capture.submit({ trackingId: capture.trackingId, sequence: 1, observedAt: 10_000, source: "camera", kind: "sample", faceDetected: false }), true);
+  assert.equal(f.transport.calls.at(-1).command, "face_submit"); assert.equal(f.transport.calls.at(-1).args.request.faceDetected, false);
+  await f.gateway.dispose(); assert.equal(f.camera.stops, 1);
+});
+test("停止のIPCが失敗・遅延してもカメラは直ちに解放し、古い停止要求では新カメラを止めない", async () => {
+  const f = captureSetup(); await f.gateway.connect(() => {}); const started = await f.gateway.start(startInput);
+  assert.equal((await f.gateway.stop("obsolete")).error.code, "staleTracking"); assert.equal(f.camera.stops, 0);
+  const pending = deferred(); f.transport.handler = () => pending.promise;
+  const stopping = f.gateway.stop(started.data.runtime.trackingId); assert.equal(f.camera.stops, 1);
+  pending.resolve(failure("internal")); assert.equal((await stopping).ok, false);
+  assert.equal(await f.camera.starts[0].submit({}), false); await f.gateway.dispose();
+});
+test("開始受付中の削除・解除や新しい停止イベントの後にカメラを復活させない", async () => {
+  for (const action of ["clear", "dispose", "event"]) {
+    const f = captureSetup(); await f.gateway.connect(() => {}); const pending = deferred();
+    const running = snapshot(1); running.runtime = { ...running.runtime, phase: "running", trackingId: "late", camera: "waiting" };
+    f.transport.handler = async command => command === "runtime_start" ? pending.promise : success(snapshot(2));
+    const starting = f.gateway.start(startInput);
+    if (action === "clear") await f.gateway.clearData();
+    if (action === "dispose") await f.gateway.dispose();
+    if (action === "event") f.transport.emit(snapshot(2));
+    pending.resolve(success(running)); assert.equal((await starting).error.code, "cancelled", action);
+    assert.equal(f.camera.starts.length, 0, action);
+    assert.ok(f.transport.calls.some(call => call.command === "runtime_stop" && call.args.request.trackingId === "late"));
+    await f.gateway.dispose();
+  }
+});
+test("外部から停止・runtime切替・ページ離脱が起きてもカメラと送信を解放する", async () => {
+  for (const action of ["stop", "runtime", "unload", "reconnect"]) {
+    const f = captureSetup(); const unloads = new Set();
+    f.environment.onUnload = callback => { unloads.add(callback); return () => unloads.delete(callback); };
+    await f.gateway.connect(() => {}); await f.gateway.start(startInput);
+    if (action === "stop") f.transport.emit(snapshot(3));
+    if (action === "runtime") {
+      f.transport.handler = async () => success(snapshot(0, "new-runtime"));
+      f.environment.resume(); await flush();
+    }
+    if (action === "unload") { for (const callback of unloads) callback(); await flush(); }
+    if (action === "reconnect") await f.gateway.connect(() => {});
+    assert.equal(f.camera.stops, 1, action); assert.equal(await f.camera.starts[0].submit({}), false);
+    await f.gateway.dispose(); assert.equal(unloads.size, 0);
+  }
+});
+test("通常モードの手動開始を拒否し、demoでは手動ソースだけを起動する", async () => {
+  const f = captureSetup(); await f.gateway.connect(() => {}); const before = f.transport.calls.length;
+  assert.equal((await f.gateway.startManual(startInput)).error.code, "permissionDenied"); assert.equal(f.transport.calls.length, before);
+  const result = await f.gateway.startManual({ ...startInput, profile: "demo" }); assert.equal(result.ok, true);
+  assert.equal(f.manual.starts.length, 1); assert.equal(f.camera.starts.length, 0);
+  f.gateway.setManualFaceDetected(true); assert.equal(f.manual.detected, true);
+  await f.gateway.dispose(); assert.equal(f.manual.stops, 1);
 });
