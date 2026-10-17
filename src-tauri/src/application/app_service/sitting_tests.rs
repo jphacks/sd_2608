@@ -7,10 +7,28 @@ pub(super) struct Rig {
 }
 impl Rig {
     pub(super) fn new() -> Self {
+        Self::with_provider(Arc::new(
+            crate::infrastructure::providers::HttpReportProvider::default(),
+        ))
+    }
+    pub(super) fn with_provider(
+        provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+    ) -> Self {
+        struct TestSource;
+        impl ActivitySource for TestSource {
+            fn read(
+                &self,
+                _: &[String],
+            ) -> Result<crate::ports::activity::ActivityReading, ActivityError> {
+                Err(ActivityError::Unavailable)
+            }
+        }
         let clock = Arc::new(FakeClock(AtomicU64::new(1_000_000)));
-        let service = AppService::with_clock(
+        let service = AppService::with_report_provider(
             clock.clone(),
             Id::try_from("sitting-test".to_string()).unwrap(),
+            Arc::new(TestSource),
+            provider,
         )
         .unwrap();
         {

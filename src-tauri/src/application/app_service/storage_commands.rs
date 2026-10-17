@@ -118,14 +118,15 @@ impl AppService {
                     let now =
                         SafeInt::try_from(self.clock.read().utc_ms).map_err(|_| internal())?;
                     drop(state);
-                    let (result, warning) = {
+                    let (result, warning, secret_id) = {
                         let mut store = self.persistence.lock().map_err(|_| internal())?;
                         let result = store.update(&request);
-                        (result, store.warning())
+                        (result, store.warning(), store.secret_id())
                     };
                     state = self.state.lock().map_err(|_| internal())?;
                     let settings = result?;
                     state.snapshot.settings = settings;
+                    state.secret_id = secret_id;
                     state.persistence_warning = warning.clone();
                     state.snapshot.warning = warning;
                     state.snapshot.revision = revision;
@@ -234,7 +235,8 @@ impl AppService {
                         history: report.history.clone(),
                         settings: state.snapshot.settings.clone(),
                         consent: state.snapshot.runtime.consent.clone(),
-                        mode: ReportMode::Local,
+                        mode: state.snapshot.runtime.effective_report_mode,
+                        secret_id: state.secret_id.clone(),
                         created_at: Some(report.created_at),
                     };
                     if !state.reports.queue.retry(
@@ -286,11 +288,14 @@ fn retry_allowed(state: &State) -> Result<(), ApiError> {
             "履歴を使う機能へ同意してから再試行してください。",
         ));
     }
-    if state.snapshot.runtime.effective_report_mode != ReportMode::Local {
-        return Err(ApiError::new(
-            ErrorCode::ProviderNotConfigured,
-            "AI レポートは未接続です（B-07）。",
-        ));
+    if state.snapshot.runtime.effective_report_mode == ReportMode::Ai {
+        if !state.snapshot.runtime.consent.external_report {
+            return Err(ApiError::new(
+                ErrorCode::ConsentRequired,
+                "AI への送信には現在の設定での同意が必要です。",
+            ));
+        }
+        validate_ai(state)?;
     }
     Ok(())
 }

@@ -25,6 +25,7 @@ export function SettingsPanel({ settings, disabled, onSave }: SettingsPanelProps
       <label>レポート方式<select name="reportMode" defaultValue={settings.reportMode}><option value="local">ローカル履歴</option><option value="ai">AI 要約</option></select></label>
       <label>API 形式<select name="provider" defaultValue={settings.provider?.kind ?? "openAiCompatible"}><option value="openAiCompatible">OpenAI 互換</option><option value="gemini">Gemini</option></select></label>
       <label>接続先<input name="endpoint" type="url" defaultValue={settings.provider?.endpoint ?? ""} placeholder="https://example.invalid/v1/chat/completions" /></label>
+      <p>OpenAI 互換は Chat Completions の完全な URL、Gemini はベース URL（例: https://generativelanguage.googleapis.com/v1beta）を指定します。HTTPS を使い、端末内のテスト API のみ HTTP を使えます。</p>
       <label>モデル<input name="model" defaultValue={settings.provider?.model ?? ""} /></label>
       <label>キーの変更<select name="keyChange" defaultValue="keep"><option value="keep">変更しない（{settings.hasApiKey ? "登録済み" : "未登録"}）</option><option value="replace">登録・差し替え</option><option value="remove">削除</option></select></label>
       <label>新しい API キー<input name="apiKey" type="password" autoComplete="new-password" /></label>

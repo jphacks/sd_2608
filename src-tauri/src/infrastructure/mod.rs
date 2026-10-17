@@ -17,4 +17,5 @@ impl ActivitySource for NativeActivitySource {
         }
     }
 }
+pub mod providers;
 pub mod storage;

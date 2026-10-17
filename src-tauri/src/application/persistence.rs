@@ -38,26 +38,7 @@ pub fn validate_settings(values: &SettingsInput) -> Result<(), ApiError> {
         return Err(ApiError::validation());
     }
     if let Some(provider) = &values.provider {
-        if !valid_text(&provider.endpoint, 2048, false) || !valid_text(&provider.model, 200, false)
-        {
-            return Err(ApiError::validation());
-        }
-        let url = url::Url::parse(&provider.endpoint).map_err(|_| ApiError::validation())?;
-        let local = match url.host() {
-            Some(url::Host::Domain("localhost")) => true,
-            Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
-            Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
-            _ => false,
-        };
-        if url.host().is_none()
-            || !(url.scheme() == "https" || (url.scheme() == "http" && local))
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.query().is_some()
-            || url.fragment().is_some()
-        {
-            return Err(ApiError::validation());
-        }
+        crate::ports::report_provider::validate_provider(provider)?;
     }
     Ok(())
 }
@@ -219,6 +200,16 @@ impl Persistence {
             revision: self.settings.revision,
             has_api_key: self.settings.secret_id.is_some() && !self.secret_warning,
         }
+    }
+    pub fn secret_id(&self) -> Option<Id> {
+        self.settings.secret_id.clone()
+    }
+    pub fn read_secret(&self, id: &Id) -> Result<Secret, ApiError> {
+        let secret = self.secrets.read(id).map_err(|_| storage_error())?;
+        if !valid_key(&secret.0) {
+            return Err(storage_error());
+        }
+        Ok(secret)
     }
     pub fn update(&mut self, request: &UpdateSettingsRequest) -> Result<SettingsView, ApiError> {
         if self.settings_blocked {

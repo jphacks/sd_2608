@@ -30,6 +30,7 @@ pub(super) struct ReportWorker {
     publisher: Arc<Mutex<Option<SnapshotPublisher>>>,
     generation: Arc<AtomicU64>,
     wake: Arc<Wake>,
+    provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
     thread: Mutex<Option<JoinHandle<()>>>,
 }
 impl ReportWorker {
@@ -39,6 +40,7 @@ impl ReportWorker {
         clock: Arc<dyn Clock>,
         publisher: Arc<Mutex<Option<SnapshotPublisher>>>,
         generation: Arc<AtomicU64>,
+        provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
     ) -> Self {
         let wake = state.upgrade().unwrap().lock().unwrap().report_wake.clone();
         Self {
@@ -48,6 +50,7 @@ impl ReportWorker {
             publisher,
             generation,
             wake,
+            provider,
             thread: Mutex::new(None),
         }
     }
@@ -65,12 +68,21 @@ impl ReportWorker {
             self.generation.clone(),
             self.wake.clone(),
         );
+        let provider = self.provider.clone();
         *thread = Some(
             std::thread::Builder::new()
                 .name("report-worker".into())
                 .spawn(move || {
                     while !wake.shutdown.load(Ordering::SeqCst) {
-                        if process_next(&state, &store, &clock, &publisher, &generation, &wake) {
+                        if process_next(
+                            &state,
+                            &store,
+                            &clock,
+                            &publisher,
+                            &generation,
+                            &wake,
+                            provider.as_ref(),
+                        ) {
                             continue;
                         }
                         let Ok(signal) = wake.signal.lock() else {
@@ -99,6 +111,7 @@ impl ReportWorker {
             &self.publisher,
             &self.generation,
             &self.wake,
+            self.provider.as_ref(),
         )
     }
 }
@@ -152,6 +165,7 @@ pub(super) fn register(
         settings: state.snapshot.settings.clone(),
         consent: state.snapshot.runtime.consent.clone(),
         mode: state.snapshot.runtime.effective_report_mode,
+        secret_id: state.secret_id.clone(),
         created_at: None,
     };
     let delay = if trigger == d::ReportTrigger::Away {
@@ -188,6 +202,7 @@ fn process_next(
     publisher: &Arc<Mutex<Option<SnapshotPublisher>>>,
     generation: &Arc<AtomicU64>,
     wake: &Wake,
+    provider: &dyn crate::ports::report_provider::ReportProvider,
 ) -> bool {
     let Some(state) = weak.upgrade() else {
         return false;
@@ -217,8 +232,57 @@ fn process_next(
     let current = || {
         generation.load(Ordering::SeqCst) == job.generation && !wake.shutdown.load(Ordering::SeqCst)
     };
+    let generated = if input.mode == ReportMode::Ai && !input.history.segments.is_empty() {
+        (|| {
+            if !input.consent.external_report || !input.consent.history || !input.consent.activity {
+                return Err(ApiError::new(
+                    ErrorCode::ConsentRequired,
+                    "AI への送信には同意が必要です。",
+                ));
+            }
+            let settings = input.settings.provider.as_ref().ok_or_else(|| {
+                ApiError::new(
+                    ErrorCode::ProviderNotConfigured,
+                    "AI の接続設定が必要です。",
+                )
+            })?;
+            let secret_id = input.secret_id.as_ref().ok_or_else(|| {
+                ApiError::new(
+                    ErrorCode::ProviderNotConfigured,
+                    "API キーを登録してください。",
+                )
+            })?;
+            // 秘密の復号だけを保存ロック内で行い、ネットワーク中はどのロックも保持しない。
+            let key = store
+                .lock()
+                .map_err(|_| internal())?
+                .read_secret(secret_id)?;
+            provider
+                .generate(settings, &key, &input.history, &current)
+                .map(Some)
+        })()
+    } else {
+        Ok(None)
+    };
+    if !current() {
+        return true;
+    }
     let completed = clock.read();
     let mut report = local_report(&job, &input, completed.utc_ms);
+    let generation_error = match generated {
+        Ok(Some(content)) => {
+            report.status = ReportStatus::Ready;
+            report.content = Some(content);
+            None
+        }
+        Ok(None) => None,
+        Err(mut error) => {
+            error.retryable = true;
+            report.status = ReportStatus::Failed;
+            report.error = Some(error.clone());
+            Some(error)
+        }
+    };
     let (result, warning) = {
         let Ok(mut store) = store.lock() else {
             return false;
@@ -234,7 +298,10 @@ fn process_next(
                 store.remember_failure(report.clone());
             }
         }
-        (result, store.warning())
+        (
+            result.and_then(|_| generation_error.map_or(Ok(()), Err)),
+            store.warning(),
+        )
     };
     if !current() {
         // 古い完了は配らない。復元自体の保存障害は現在のアプリにも知らせる。

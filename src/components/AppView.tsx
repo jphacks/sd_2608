@@ -15,6 +15,10 @@ export function AppView({ state, actions, petManifest }: AppViewProps) {
   const busy = state.pending !== null || state.connection !== "connected";
   const running = snapshot?.runtime.phase === "running";
   useEffect(() => {
+    setConsent(false);
+    setExternalConsent(false);
+  }, [snapshot?.runtimeId, snapshot?.settings.revision, running]);
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (settingsOpen) setSettingsOpen(false);
@@ -25,6 +29,13 @@ export function AppView({ state, actions, petManifest }: AppViewProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [settingsOpen, state.bubble, state.report.phase, busy, actions]);
   const usesAi = snapshot?.settings.reportMode === "ai" && !!snapshot.settings.provider && snapshot.settings.hasApiKey;
+  const destination = snapshot?.settings.provider;
+  const retry = () => {
+    if (snapshot?.runtime.effectiveReportMode === "ai" && destination && !window.confirm(
+      `このレポートの固定済み履歴を次の AI へ再送信しますか？\n${destination.endpoint}\nモデル: ${destination.model}`,
+    )) return;
+    void actions.retryReport();
+  };
   return <main className="app-view">
     <header><h1>休憩のおとも</h1><span>{state.connection === "connected" ? "接続済み" : state.connection === "connecting" ? "接続中" : "接続できません"}</span></header>
     {state.error && <p role="alert">{state.error.message} <button onClick={actions.dismissError}>閉じる</button></p>}
@@ -34,17 +45,22 @@ export function AppView({ state, actions, petManifest }: AppViewProps) {
         <PetStage pet={state.pet} manifest={petManifest} reducedMotion={snapshot?.settings.reducedMotion ?? false} onClick={() => { void actions.openLatestReport(); }} />
         {state.bubble && <MessageBubble bubble={{ ...state.bubble, disabled: busy }} onAnswer={answer => { void actions.answer(answer); }} />}
       </div>
-      <ReportPanel state={state.report} queuedCount={state.queuedReportCount} busy={busy || !running} onClose={actions.closeReport} onRetry={() => { void actions.retryReport(); }} />
+      <ReportPanel state={state.report} queuedCount={state.queuedReportCount} busy={busy || !running} onClose={actions.closeReport} onRetry={retry} />
     </div>
     {snapshot && <section className="runtime-controls" aria-label="取得・通知の操作">
       <p>連続在席：{Math.floor((snapshot.session?.elapsedMs ?? 0) / 60_000)}分 · 在席状態：{snapshot.presence.value}</p>
       {!running ? <>
         <label className="check"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />顔の有無・PC 情報を使った計測と、マスク済み履歴の記録を開始する</label>
-        {usesAi ? <label className="check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />Yes 時と離席5分後に、設定した AI へ履歴を送信する</label> : <p>AI 送信を使わず、端末内の履歴カードを作成します。</p>}
+        {usesAi ? <label className="check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />Yes 時と離席5分後に、マスク済み履歴を {destination?.endpoint}（モデル: {destination?.model}）へ送信する</label> : <p>AI 送信を使わず、端末内の履歴カードを作成します。</p>}
+        {snapshot.settings.reportMode === "ai" && !usesAi && <p>AI 要約には接続先・モデル・API キーの登録が必要です。</p>}
         <button disabled={busy || !consent || (usesAi && !externalConsent)} onClick={() => { void actions.start({
           profile: "normal", expectedSettingsRevision: snapshot.settings.revision,
           reportMode: usesAi ? "ai" : "local", consent: { activity: consent, history: consent, externalReport: usesAi && externalConsent },
-        }); }}>開始</button>
+        }); }}>{usesAi ? "AI で開始" : "ローカル履歴で開始"}</button>
+        {usesAi && <button disabled={busy || !consent} onClick={() => { void actions.start({
+          profile: "normal", expectedSettingsRevision: snapshot.settings.revision, reportMode: "local",
+          consent: { activity: consent, history: consent, externalReport: false },
+        }); }}>AI 送信せず開始</button>}
       </> : <button disabled={busy} onClick={() => { void actions.stop(); }}>監視を停止</button>}
       <button onClick={() => setSettingsOpen(value => !value)}>設定</button>
       {snapshot.jobs.some(job => job.status === "scheduled") && <p role="status">レポートを予約しています。帰席しても予約は継続します。</p>}

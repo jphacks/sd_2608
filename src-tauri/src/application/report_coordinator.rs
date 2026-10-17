@@ -14,6 +14,7 @@ pub struct Input {
     pub settings: SettingsView,
     pub consent: Consent,
     pub mode: ReportMode,
+    pub secret_id: Option<Id>,
     pub created_at: Option<SafeInt>,
 }
 #[derive(Default)]

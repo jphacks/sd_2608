@@ -65,6 +65,7 @@ struct State {
     // 離席が確定するまで、顔欠落開始時点の直近30分を一つだけ仮固定する。
     away_history_candidate: Option<(u64, u64, HistorySnapshot)>,
     persistence_warning: Option<ApiError>,
+    secret_id: Option<Id>,
     reports: ReportCoordinator,
     report_wake: Arc<Wake>,
 }
@@ -92,6 +93,21 @@ fn internal() -> ApiError {
         ErrorCode::Internal,
         "アプリの状態を更新できません。再起動してください。",
     )
+}
+fn validate_ai(state: &State) -> Result<(), ApiError> {
+    let settings = &state.snapshot.settings;
+    let provider = settings
+        .provider
+        .as_ref()
+        .filter(|_| settings.has_api_key && state.secret_id.is_some())
+        .ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::ProviderNotConfigured,
+                "AI の接続設定・API キーを登録するか、ローカルモードを選んでください。",
+            )
+        })?;
+    crate::ports::report_provider::validate_provider(provider)?;
+    Ok(())
 }
 fn parse<T: DeserializeOwned>(request: Option<Value>) -> Result<T, ApiError> {
     request
@@ -127,6 +143,19 @@ impl AppService {
         runtime_id: Id,
         source: Arc<dyn ActivitySource>,
     ) -> Result<Self, ApiError> {
+        Self::with_report_provider(
+            clock,
+            runtime_id,
+            source,
+            Arc::new(crate::infrastructure::providers::HttpReportProvider::default()),
+        )
+    }
+    pub fn with_report_provider(
+        clock: Arc<dyn Clock>,
+        runtime_id: Id,
+        source: Arc<dyn ActivitySource>,
+        provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+    ) -> Result<Self, ApiError> {
         let now = SafeInt::try_from(clock.read().utc_ms).map_err(|_| internal())?;
         let state = Arc::new(Mutex::new(State {
             snapshot: AppSnapshot::initial(runtime_id, now),
@@ -143,6 +172,7 @@ impl AppService {
             requested_history: None,
             away_history_candidate: None,
             persistence_warning: None,
+            secret_id: None,
             reports: Default::default(),
             report_wake: Arc::default(),
         }));
@@ -209,6 +239,7 @@ impl AppService {
             clock.clone(),
             publisher.clone(),
             generation.clone(),
+            provider,
         );
         Ok(Self {
             state,
@@ -235,6 +266,7 @@ impl AppService {
             return Err(internal());
         }
         state.snapshot.settings = store.settings_view();
+        state.secret_id = store.secret_id();
         state.persistence_warning = store.warning();
         state.snapshot.warning = store.warning();
         drop(state);
@@ -569,10 +601,7 @@ impl AppService {
             return Err(storage_error());
         }
         if request.report_mode == ReportMode::Ai {
-            return Err(ApiError::new(
-                ErrorCode::ProviderNotConfigured,
-                "AI レポートは未接続です（B-07）。ローカルモードを選んでください。",
-            ));
+            validate_ai(state)?;
         }
         let generation = state.generation.checked_add(1).ok_or_else(internal)?;
         let revision = SafeInt::try_from(
@@ -614,7 +643,7 @@ impl AppService {
             phase: RuntimePhase::Running,
             tracking_id: Some(tracking_id),
             profile: request.profile,
-            effective_report_mode: ReportMode::Local,
+            effective_report_mode: request.report_mode,
             camera: CameraPhase::Waiting,
             activity: ActivityPhase::Running,
             consent: request.consent.clone(),
@@ -822,6 +851,8 @@ fn activity_unavailable() -> ApiError {
     )
 }
 
+#[cfg(test)]
+mod ai_report_tests;
 #[cfg(test)]
 mod report_tests;
 #[cfg(test)]
