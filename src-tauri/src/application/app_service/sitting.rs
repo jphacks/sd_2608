@@ -9,12 +9,26 @@ pub(super) fn timings(profile: TimingProfile) -> d::timings::Timings {
     }
 }
 pub(super) fn handle_events(state: &mut State, events: &[d::DomainEvent]) {
-    // B-05/06 の履歴確定・予約はここへ接続する。現時点ではジョブ成功を捏造しない。
-    if events
-        .iter()
-        .any(|event| matches!(event, d::DomainEvent::ReportRequested { .. }))
-    {
-        state.report_unavailable = true;
+    for event in events {
+        match event {
+            d::DomainEvent::SessionStarted(session) => {
+                state.history.begin(session.id, session.started_at)
+            }
+            d::DomainEvent::SessionEnded { session, .. } => {
+                if let Some(end) = session.ended_at {
+                    state.history.end(end.elapsed_ms);
+                }
+            }
+            d::DomainEvent::ReportRequested {
+                session,
+                requested_at,
+                ..
+            } => {
+                state.requested_history = history::requested(state, session, *requested_at).ok();
+                state.report_unavailable = true;
+            }
+            _ => {}
+        }
     }
 }
 pub(super) fn refresh_inputs(state: &mut State, now: ClockReading) {
@@ -75,6 +89,8 @@ pub(super) fn refresh_inputs(state: &mut State, now: ClockReading) {
     ) {
         Ok(events) => {
             handle_events(state, &events);
+            history::record(state);
+            history::checkpoint_away(state);
             project(state);
         }
         Err(_) => projection_error(state),
@@ -203,7 +219,7 @@ pub(super) fn project(state: &mut State) {
     };
     state.snapshot.warning = Some(ApiError::new(
         ErrorCode::InvalidState,
-        &format!("{label}{detail} 履歴保存・レポートは未接続です（B-05〜07）。{report}"),
+        &format!("{label}{detail} レポート生成・予約は未接続です（B-06・B-07）。{report}"),
     ));
 }
 fn projection_error(state: &mut State) {

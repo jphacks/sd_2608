@@ -8,7 +8,18 @@ use application::app_service::AppService;
 use tauri::Manager;
 
 pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
-    configure_with_service(builder, AppService::default())
+    configure_with_service(builder, AppService::default()).setup(|app| {
+        let root = app.path().app_local_data_dir()?;
+        app.state::<AppService>()
+            .initialize_storage(
+                std::sync::Arc::new(infrastructure::storage::FileRepository::new(root.clone())),
+                std::sync::Arc::new(infrastructure::storage::secrets::DpapiSecretStore::new(
+                    root,
+                )),
+            )
+            .map_err(|_| std::io::Error::other("保存基盤を初期化できません。"))?;
+        Ok(())
+    })
 }
 
 pub fn configure_with_service<R: tauri::Runtime>(

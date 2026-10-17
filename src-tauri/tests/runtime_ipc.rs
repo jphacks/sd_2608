@@ -98,10 +98,6 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
             "reminder_respond",
             json!({"requestId":"answer","trackingId":"missing","sessionId":"missing","reminderId":"missing","answer":"yes"}),
         ),
-        (
-            "settings_update",
-            json!({"requestId":"settings","expectedSettingsRevision":0,"values":{"reportMode":"local","provider":null,"excludedApps":[],"reducedMotion":false},"keyChange":{"kind":"keep"}}),
-        ),
         ("report_get", json!({"reportId":"missing"})),
         (
             "report_retry",
@@ -115,6 +111,13 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
             "{command}"
         );
     }
+    let saved = invoke(
+        &main,
+        "settings_update",
+        json!({"request":{"requestId":"settings","expectedSettingsRevision":0,"values":{"reportMode":"local","provider":null,"excludedApps":[],"reducedMotion":true},"keyChange":{"kind":"keep"}}}),
+    );
+    assert_eq!(saved["ok"], true);
+    assert_eq!(saved["data"]["settings"]["revision"], 1);
     let other = tauri::WebviewWindowBuilder::new(&app, "other", Default::default())
         .build()
         .unwrap();
@@ -122,7 +125,7 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
         invoke(&other, "app_get_snapshot", json!({}))["error"]["code"],
         "permissionDenied"
     );
-    let start = json!({"request":{"requestId":"start","profile":"normal","expectedSettingsRevision":0,"reportMode":"local","consent":{"activity":true,"history":true,"externalReport":false}}});
+    let start = json!({"request":{"requestId":"start","profile":"normal","expectedSettingsRevision":1,"reportMode":"local","consent":{"activity":true,"history":true,"externalReport":false}}});
     assert_eq!(
         invoke(&other, "runtime_start", start.clone())["error"]["code"],
         "permissionDenied"
