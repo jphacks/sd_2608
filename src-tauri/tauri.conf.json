@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "sd_2608",
+  "productName": "Pochi",
   "version": "0.1.0",
   "identifier": "com.jphacks.sd2608",
   "build": {
@@ -12,9 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "sd_2608",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "ポチ · 休憩のおとも",
+        "width": 440,
+        "height": 760,
+        "minWidth": 380,
+        "minHeight": 640,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true
       }
     ],
     "security": {
