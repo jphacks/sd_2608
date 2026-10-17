@@ -1,0 +1,72 @@
+.pochi-app { --p-cream:#fff6e8; --p-card:#fffdf8; --p-ink:#4a2c1e; --p-sub:#856753; --p-line:#ebd3b6; --p-ear:#8b5e4b; --p-sage:#2f6b52; color:var(--p-ink); font-family:"Yu Gothic UI","Hiragino Maru Gothic ProN",sans-serif; line-height:1.65; min-height:100vh; background:var(--p-cream); }
+.pochi-app * { box-sizing:border-box; }
+.pochi-app button,.pochi-app input,.pochi-app textarea,.pochi-app select { font:inherit; color:inherit; border:1px solid var(--p-line); border-radius:13px; background:var(--p-cream); }
+.pochi-app button { min-height:40px; padding:8px 13px; transition:background .18s; }
+.pochi-app button:hover:not(:disabled) { background:#f4e4cd; }
+.pochi-app button:focus-visible,.pochi-app input:focus-visible,.pochi-app textarea:focus-visible,.pochi-app select:focus-visible { outline:3px solid #d79341; outline-offset:3px; }
+.pochi-page-header { height:86px; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(20px,5vw,80px); gap:12px; }
+.pochi-page-header a { text-decoration:none; display:flex; align-items:center; gap:12px; font-size:23px; font-weight:800; color:inherit; }
+.pochi-page-header a small { font-size:12px; font-weight:500; color:var(--p-sub); letter-spacing:.06em; }
+.pochi-logo { width:36px; height:36px; display:grid; place-items:center; border:1px solid var(--p-line); border-radius:14px; background:#f3cda6; font-size:21px; }
+.pochi-pill { display:inline-block; border:1px solid var(--p-line); padding:4px 11px; font-size:11px; border-radius:30px; white-space:nowrap; background:var(--p-card); }
+.pochi-room { position:relative; margin:0 24px 24px; min-height:760px; height:calc(100vh - 110px); border-radius:30px; overflow:hidden; background:radial-gradient(ellipse at 15% 10%,#e5ecec,transparent 65%),#cfdde0; }
+.pochi-room::after { content:""; position:absolute; width:560px; height:560px; left:-80px; bottom:-340px; background:#d8e2ce; border-radius:50%; pointer-events:none; }
+.pochi-intro { position:absolute; top:14%; left:7%; max-width:42%; }
+.pochi-eyebrow { font-size:10px; font-weight:800; letter-spacing:.2em; color:var(--p-sub); }
+.pochi-intro h1 { font-size:clamp(30px,4vw,58px); line-height:1.5; letter-spacing:.03em; margin:20px 0; font-weight:600; }
+.pochi-intro p { color:var(--p-sub); line-height:2.2; font-size:14px; }
+.pochi-guide { display:flex; flex-direction:column; gap:8px; margin-top:44px; font-size:12px; color:var(--p-sub); }
+.pochi-dock { position:absolute; right:clamp(20px,5vw,90px); bottom:18px; width:370px; max-width:calc(100% - 24px); display:flex; flex-direction:column; align-items:center; z-index:1; }
+.pochi-bubble { position:relative; width:100%; max-height:min(420px, calc(max(760px, 100vh - 110px) - var(--pet-size, 230px) - 130px)); overflow:auto; scrollbar-width:thin; background:var(--p-card); border:1px solid #fff8eb; border-radius:26px; padding:24px; box-shadow:0 3px 0 var(--p-line),0 12px 28px #4a2c1e12; margin-bottom:8px; }
+.pochi-bubble h2 { font-size:22px; letter-spacing:.025em; line-height:1.6; font-weight:700; margin:8px 0 12px; }
+.pochi-bubble p { font-size:13px; margin:10px 0 16px; }
+.pochi-muted,.pochi-bubble p.pochi-muted { color:var(--p-sub); font-size:11px; }
+.pochi-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.pochi-actions>* { flex:1; }
+.pochi-app button.pochi-primary { color:var(--p-cream); background:var(--p-ear); border-color:var(--p-ear); }
+.pochi-app button.pochi-primary:hover:not(:disabled) { background:#754c3d; }
+.pochi-full { width:100%; }
+.pochi-app button.pochi-text-button { border:0; background:transparent; padding:10px 0 0; font-size:11px; color:var(--p-sub); }
+.pochi-bubble label { display:block; font-size:12px; font-weight:600; margin:12px 0; }
+.pochi-bubble input:not([type=checkbox]),.pochi-bubble textarea { display:block; width:100%; min-width:0; padding:10px 12px; margin-top:5px; resize:vertical; }
+.pochi-bubble .pochi-setting-row { display:flex; align-items:center; gap:10px; justify-content:space-between; padding:7px 0; margin:0; border-bottom:1px solid #ebd3b650; }
+.pochi-setting-row span { white-space:nowrap; }
+.pochi-setting-row input[type=number] { display:inline-block; width:68px; padding:5px; margin:0; }
+.pochi-setting-row select { max-width:150px; padding:7px 5px; font-size:12px; }
+.pochi-bubble label.pochi-check { display:flex; align-items:center; gap:7px; }
+.pochi-check input { accent-color:var(--p-ear); }
+.pochi-tabs { display:flex; gap:8px; margin-bottom:15px; }
+.pochi-tabs button { flex:1; border-radius:30px; min-height:35px; padding:4px 12px; }
+.pochi-tabs button[aria-pressed=true] { background:#f3cda6; border-color:var(--p-ear); }
+.pochi-pet-row { width:100%; display:flex; justify-content:flex-end; padding:0 20px; }
+.pochi-app button.pochi-pet-button { border:0; padding:0; background:transparent; flex:none; min-height:0; }
+.pochi-app button.pochi-pet-button:hover { background:transparent; }
+.pochi-sprite { width:100%; height:100%; display:block; object-fit:contain; background-repeat:no-repeat; }
+.pochi-status { display:flex; align-items:center; gap:8px; background:#fffdf8d9; border-radius:22px; padding:4px 13px; margin:4px 0 8px; font-size:11px; }
+.pochi-status-dot { width:6px; height:6px; background:var(--p-ear); border-radius:50%; }
+.pochi-status-dot.is-resting { background:var(--p-sage); }
+.pochi-status time { font-variant-numeric:tabular-nums; color:var(--p-sub); }
+.pochi-toolbar { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; }
+.pochi-toolbar button { font-size:11px; padding:4px 10px; min-height:30px; background:var(--p-card); border-color:transparent; }
+.pochi-hint { font-size:9px; margin:8px 0 0; color:#685e51; text-align:center; }
+.pochi-alert { padding:12px; background:#fff1d7; border:1px solid #d2a777; border-radius:13px; margin-bottom:12px; font-size:12px; }
+.pochi-report-entry { border-top:1px solid var(--p-line); padding:17px 0 4px; }
+.pochi-report-entry header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.pochi-report-entry header small { font-size:10px; color:var(--p-sub); }
+.pochi-report-entry h3 { font-size:15px; margin:3px 0; overflow-wrap:anywhere; }
+.pochi-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; background:var(--p-cream); border-radius:12px; padding:12px 8px; }
+.pochi-stats dt { font-size:10px; color:var(--p-sub); }
+.pochi-stats dd { font-size:13px; margin:5px 0 0; font-variant-numeric:tabular-nums; }
+.pochi-stats dd small { font-size:10px; }
+.pochi-break-entry { border-left:2px solid #d4b18d; padding:0 0 1px 12px; margin:18px 0; }
+.pochi-break-entry h4 { font-size:12px; margin:0; }
+.pochi-break-entry h4 small { display:block; font-size:9px; color:var(--p-sub); font-weight:400; }
+.pochi-break-entry p { font-size:11px; white-space:pre-wrap; overflow-wrap:anywhere; }
+html[data-pochi-desktop=true],html[data-pochi-desktop=true] body,html[data-pochi-desktop=true] #root { background:transparent; }
+html[data-pochi-desktop=true] .pochi-app { background:transparent; min-height:100vh; }
+html[data-pochi-desktop=true] .pochi-room { margin:0; border-radius:0; background:transparent; min-height:100vh; height:100vh; }
+html[data-pochi-desktop=true] .pochi-room::after { display:none; }
+html[data-pochi-desktop=true] .pochi-dock { right:12px; bottom:12px; width:calc(100% - 24px); }
+html[data-pochi-desktop=true] .pochi-bubble { max-height:calc(100vh - var(--pet-size, 230px) - 140px); }
+@media(max-width:760px) { .pochi-intro { display:none; } .pochi-room { margin:0 10px 10px; min-height:760px; height:calc(100vh - 96px); } .pochi-dock { right:50%; transform:translateX(50%); } .pochi-page-header { padding:0 16px; } .pochi-page-header a small { display:none; } }
+@media(prefers-reduced-motion:reduce) { .pochi-app button { transition:none; } }
