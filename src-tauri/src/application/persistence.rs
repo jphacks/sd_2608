@@ -124,6 +124,7 @@ pub struct Persistence {
     secrets: Arc<dyn SecretStore>,
     settings: SavedSettings,
     reports: Vec<Report>,
+    volatile_reports: Vec<Report>,
     settings_blocked: bool,
     reports_blocked: bool,
     secret_warning: bool,
@@ -159,6 +160,7 @@ impl Persistence {
                 secret_id: None,
             },
             reports: vec![],
+            volatile_reports: vec![],
             settings_blocked: false,
             reports_blocked: false,
             secret_warning: false,
@@ -303,6 +305,9 @@ impl Persistence {
         self.reports.truncate(REPORT_LIMIT);
     }
     fn prune(&mut self, now: u64) -> Result<(), ApiError> {
+        self.volatile_reports.retain(|report| {
+            report.created_at.get() <= now && now - report.created_at.get() <= REPORT_RETENTION_MS
+        });
         if self.reports_blocked {
             return Err(storage_error());
         }
@@ -345,6 +350,7 @@ impl Persistence {
         }
         let before = self.reports.clone();
         self.reports.retain(|old| old.id != report.id);
+        let report_id = report.id.clone();
         self.reports.push(report);
         self.retain(now);
         if self.repository.save_reports(&self.document()).is_err() {
@@ -352,7 +358,70 @@ impl Persistence {
             return Err(storage_error());
         }
         self.epoch += 1;
+        self.volatile_reports.retain(|old| old.id != report_id);
         Ok(())
+    }
+    /// 遅い保存中に世代が変わった場合は旧保存内容へ戻す。削除と同じ保存ロックで直列化する。
+    pub fn save_report_guarded(
+        &mut self,
+        report: Report,
+        now: u64,
+        current: impl Fn() -> bool,
+    ) -> Result<(), ApiError> {
+        let cancelled = || {
+            ApiError::new(
+                ErrorCode::Cancelled,
+                "このレポートの作成は取り消されました。",
+            )
+        };
+        if !current() {
+            return Err(cancelled());
+        }
+        let before = self.reports.clone();
+        let volatile = self.volatile_reports.clone();
+        let epoch = self.epoch;
+        let result = self.save_report(report, now);
+        if current() {
+            return result;
+        }
+        self.reports = before;
+        self.volatile_reports = volatile;
+        self.epoch = epoch;
+        if result.is_ok() && self.repository.save_reports(&self.document()).is_err() {
+            self.reports_blocked = true;
+            return Err(storage_error());
+        }
+        Err(cancelled())
+    }
+    /// 保存失敗のカードは実行中だけ参照可能。永続化の成功とは扱わない。
+    pub fn remember_failure(&mut self, report: Report) {
+        debug_assert_eq!(report.status, ReportStatus::Failed);
+        self.volatile_reports.retain(|old| old.id != report.id);
+        self.volatile_reports.push(report);
+        self.volatile_reports
+            .sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        self.volatile_reports.truncate(REPORT_LIMIT);
+        self.epoch += 1;
+    }
+    fn visible(&self) -> Vec<&Report> {
+        let mut reports: Vec<_> = self
+            .reports
+            .iter()
+            .filter(|report| {
+                !self
+                    .volatile_reports
+                    .iter()
+                    .any(|overlay| overlay.id == report.id)
+            })
+            .chain(self.volatile_reports.iter())
+            .collect();
+        reports.sort_by(|a, b| {
+            b.created_at
+                .cmp(&a.created_at)
+                .then_with(|| a.id.as_str().cmp(b.id.as_str()))
+        });
+        reports.truncate(REPORT_LIMIT);
+        reports
     }
     pub fn list(
         &mut self,
@@ -365,16 +434,16 @@ impl Persistence {
         }
         self.prune(now)?;
         let prefix = format!("{}:{}:", runtime.as_str(), self.epoch);
+        let visible = self.visible();
         let offset = match &request.cursor {
             None => 0,
             Some(cursor) => cursor
                 .strip_prefix(&prefix)
                 .and_then(|value| value.parse::<usize>().ok())
-                .filter(|offset| *offset > 0 && *offset < self.reports.len())
+                .filter(|offset| *offset > 0 && *offset < visible.len())
                 .ok_or_else(ApiError::validation)?,
         };
-        let items: Vec<_> = self
-            .reports
+        let items: Vec<_> = visible
             .iter()
             .skip(offset)
             .take(request.limit.get() as usize)
@@ -389,13 +458,13 @@ impl Persistence {
         let next = offset + items.len();
         Ok(ReportPage {
             items,
-            next_cursor: (next < self.reports.len()).then(|| format!("{prefix}{next}")),
+            next_cursor: (next < visible.len()).then(|| format!("{prefix}{next}")),
         })
     }
     pub fn get(&mut self, id: &Id, now: u64) -> Result<Report, ApiError> {
         self.prune(now)?;
-        self.reports
-            .iter()
+        self.visible()
+            .into_iter()
             .find(|report| report.id == *id)
             .cloned()
             .ok_or_else(|| ApiError::new(ErrorCode::NotFound, "レポートがありません。"))
@@ -405,6 +474,7 @@ impl Persistence {
             return Err(storage_error());
         }
         self.reports.clear();
+        self.volatile_reports.clear();
         self.epoch += 1;
         if self.repository.save_reports(&self.document()).is_err() {
             self.reports_blocked = true;

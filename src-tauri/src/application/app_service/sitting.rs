@@ -22,10 +22,12 @@ pub(super) fn handle_events(state: &mut State, events: &[d::DomainEvent]) {
             d::DomainEvent::ReportRequested {
                 session,
                 requested_at,
-                ..
+                trigger,
             } => {
                 state.requested_history = history::requested(state, session, *requested_at).ok();
-                state.report_unavailable = true;
+                if let Err(error) = reports::register(state, session, *trigger, *requested_at) {
+                    state.report_error = Some(error);
+                }
             }
             _ => {}
         }
@@ -193,6 +195,7 @@ pub(super) fn project(state: &mut State) {
             return;
         }
     }
+    reports::project(state);
     let label = if state.face.source == Some(FaceSource::Manual) {
         "手動テスト（カメラ不使用）："
     } else {
@@ -212,15 +215,14 @@ pub(super) fn project(state: &mut State) {
         _ if state.face.phase() == CameraPhase::Off => "カメラの取得は停止しています。",
         _ => "",
     };
-    let report = if state.report_unavailable {
-        " レポートの作成要求は発生しましたが、生成は未接続です。カードは作成していません。"
-    } else {
-        ""
-    };
-    state.snapshot.warning = Some(ApiError::new(
-        ErrorCode::InvalidState,
-        &format!("{label}{detail} レポート生成・予約は未接続です（B-06・B-07）。{report}"),
-    ));
+    state.snapshot.warning = state
+        .report_error
+        .clone()
+        .or_else(|| state.persistence_warning.clone())
+        .or_else(|| {
+            (!label.is_empty() || !detail.is_empty())
+                .then(|| ApiError::new(ErrorCode::InvalidState, &format!("{label}{detail}")))
+        });
 }
 fn projection_error(state: &mut State) {
     state.snapshot.presence = PresenceState {

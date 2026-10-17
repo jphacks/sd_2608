@@ -1,8 +1,11 @@
 use super::activity_monitor::ActivityMonitor;
 use super::face_input::{FaceIngress, FaceObservation};
 mod history;
+mod reports;
 mod sitting;
+mod storage_commands;
 use super::persistence::{Persistence, storage_error};
+use super::report_coordinator::ReportCoordinator;
 use crate::{
     infrastructure::NativeActivitySource,
     ipc::dto::*,
@@ -12,6 +15,7 @@ use crate::{
     },
     ports::clock::{Clock, SystemClock},
 };
+use reports::{ReportWorker, Wake};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use sitting::refresh_inputs;
@@ -48,18 +52,21 @@ struct State {
     snapshot: AppSnapshot,
     generation: u64,
     receipts: VecDeque<Receipt>,
+    inflight: Option<Id>,
     fingerprinters: [RandomState; 2],
     activity: Option<ActivitySample>,
     face: FaceIngress,
     domain: Option<crate::domain::Engine>,
     activity_error: Option<ActivityError>,
-    report_unavailable: bool,
+    report_error: Option<ApiError>,
     history: crate::domain::history::History,
-    // B-06 の調整処理への接続点。予約・ジョブの代用にはせず最後の固定コピーのみ保持。
+    // 診断用の最後の固定コピー。ジョブごとの正本は reports.inputs が所有する。
     requested_history: Option<HistorySnapshot>,
     // 離席が確定するまで、顔欠落開始時点の直近30分を一つだけ仮固定する。
     away_history_candidate: Option<(u64, u64, HistorySnapshot)>,
-    persistence: Persistence,
+    persistence_warning: Option<ApiError>,
+    reports: ReportCoordinator,
+    report_wake: Arc<Wake>,
 }
 type SnapshotPublisher = Arc<dyn Fn(&AppSnapshot) + Send + Sync>;
 pub struct AppService {
@@ -67,6 +74,10 @@ pub struct AppService {
     clock: Arc<dyn Clock>,
     monitor: ActivityMonitor,
     publisher: Arc<Mutex<Option<SnapshotPublisher>>>,
+    persistence: Arc<Mutex<Persistence>>,
+    commands: Mutex<()>,
+    generation: Arc<AtomicU64>,
+    report_worker: ReportWorker,
 }
 pub struct DispatchOutcome {
     pub result: ApiResult<Value>,
@@ -121,17 +132,22 @@ impl AppService {
             snapshot: AppSnapshot::initial(runtime_id, now),
             generation: 0,
             receipts: VecDeque::new(),
+            inflight: None,
             fingerprinters: [RandomState::new(), RandomState::new()],
             activity: None,
             face: FaceIngress::default(),
             domain: None,
             activity_error: None,
-            report_unavailable: false,
+            report_error: None,
             history: Default::default(),
             requested_history: None,
             away_history_candidate: None,
-            persistence: Persistence::default(),
+            persistence_warning: None,
+            reports: Default::default(),
+            report_wake: Arc::default(),
         }));
+        let persistence = Arc::new(Mutex::new(Persistence::default()));
+        let generation = Arc::new(AtomicU64::new(0));
         let publisher: Arc<Mutex<Option<SnapshotPublisher>>> = Arc::default();
         let weak_state = Arc::downgrade(&state);
         let worker_publisher = publisher.clone();
@@ -187,11 +203,22 @@ impl AppService {
                 }
             }),
         );
+        let report_worker = ReportWorker::new(
+            Arc::downgrade(&state),
+            persistence.clone(),
+            clock.clone(),
+            publisher.clone(),
+            generation.clone(),
+        );
         Ok(Self {
             state,
             clock,
             monitor,
             publisher,
+            persistence,
+            generation,
+            commands: Mutex::new(()),
+            report_worker,
         })
     }
     /// Tauri setup だけから呼ぶ。テスト・診断の既定コンストラクターはユーザーデータに触れない。
@@ -200,15 +227,18 @@ impl AppService {
         repository: Arc<dyn crate::ports::storage::Repository>,
         secrets: Arc<dyn crate::ports::storage::SecretStore>,
     ) -> Result<(), ApiError> {
+        let store = Persistence::open(repository, secrets, self.clock.read().utc_ms);
         let mut state = self.state.lock().map_err(|_| internal())?;
         if state.snapshot.runtime.phase != RuntimePhase::Stopped
             || state.snapshot.revision != SafeInt::ZERO
         {
             return Err(internal());
         }
-        state.persistence = Persistence::open(repository, secrets, self.clock.read().utc_ms);
-        state.snapshot.settings = state.persistence.settings_view();
-        state.snapshot.warning = state.persistence.warning();
+        state.snapshot.settings = store.settings_view();
+        state.persistence_warning = store.warning();
+        state.snapshot.warning = store.warning();
+        drop(state);
+        *self.persistence.lock().map_err(|_| internal())? = store;
         Ok(())
     }
     /// 内部の Domain/履歴用。通常 IPC へシリアライズせず、古い入力も返さない。
@@ -253,6 +283,32 @@ impl AppService {
                 ErrorCode::PermissionDenied,
                 "このウィンドウからは操作できません。",
             ));
+        }
+        // 長い保存待ち中も snapshot・顔入力・Stop は状態ロックだけで進められる。
+        let _command = if matches!(
+            command,
+            Command::AppGetSnapshot
+                | Command::FaceSubmit
+                | Command::RuntimeStop
+                | Command::ReportList
+                | Command::ReportGet
+        ) {
+            None
+        } else {
+            match self.commands.lock() {
+                Ok(guard) => Some(guard),
+                Err(_) => return reject(internal()),
+            }
+        };
+        if matches!(
+            command,
+            Command::ReportList
+                | Command::ReportGet
+                | Command::SettingsUpdate
+                | Command::DataClear
+                | Command::ReportRetry
+        ) {
+            return self.storage_dispatch(command, request);
         }
         let mut state = match self.state.lock() {
             Ok(state) => state,
@@ -309,19 +365,6 @@ impl AppService {
                         };
                     }
                 }
-                Command::ReportList => parse::<ListReportsRequest>(request).and_then(|request| {
-                    let runtime = state.snapshot.runtime_id.clone();
-                    state
-                        .persistence
-                        .list(&request, self.clock.read().utc_ms, &runtime)
-                        .map(response)
-                }),
-                Command::ReportGet => parse::<GetReportRequest>(request).and_then(|request| {
-                    state
-                        .persistence
-                        .get(&request.report_id, self.clock.read().utc_ms)
-                        .map(response)
-                }),
                 Command::RuntimeStart => match parse::<StartRuntimeRequest>(request) {
                     Ok(request) => {
                         return self.mutate(
@@ -373,65 +416,6 @@ impl AppService {
                     }
                     Err(error) => Err(error),
                 },
-                Command::SettingsUpdate => match parse::<UpdateSettingsRequest>(request) {
-                    Ok(request) => {
-                        return self.mutate(
-                            &mut state,
-                            command,
-                            request.request_id.clone(),
-                            json!(request),
-                            |state| {
-                                if state.snapshot.runtime.phase != RuntimePhase::Stopped {
-                                    return failure(
-                                        ErrorCode::InvalidState,
-                                        "設定変更前に監視を停止してください。",
-                                    );
-                                }
-                                let result = (|| {
-                                    let revision = SafeInt::try_from(
-                                        state
-                                            .snapshot
-                                            .revision
-                                            .get()
-                                            .checked_add(1)
-                                            .ok_or_else(internal)?,
-                                    )
-                                    .map_err(|_| internal())?;
-                                    let now = SafeInt::try_from(self.clock.read().utc_ms)
-                                        .map_err(|_| internal())?;
-                                    let settings = state.persistence.update(&request)?;
-                                    state.snapshot.settings = settings;
-                                    state.snapshot.revision = revision;
-                                    state.snapshot.emitted_at = now;
-                                    state.snapshot.warning = state.persistence.warning();
-                                    Ok(state.snapshot.clone())
-                                })();
-                                match result {
-                                    Ok(snapshot) => response(snapshot),
-                                    Err(error) => ApiResult::Failure(error),
-                                }
-                            },
-                        );
-                    }
-                    Err(error) => Err(error),
-                },
-                Command::ReportRetry => match parse::<RetryReportRequest>(request) {
-                    Ok(request) => {
-                        return self.mutate(
-                            &mut state,
-                            command,
-                            request.request_id.clone(),
-                            json!(request),
-                            |_| {
-                                failure(
-                                    ErrorCode::InvalidState,
-                                    "レポート生成は未接続です（B-06・B-07）。",
-                                )
-                            },
-                        );
-                    }
-                    Err(error) => Err(error),
-                },
                 Command::RuntimeStop => match parse::<StopRuntimeRequest>(request) {
                     Ok(request) => return self.mutate(
                         &mut state,
@@ -455,29 +439,11 @@ impl AppService {
                     ),
                     Err(error) => Err(error),
                 },
-                Command::DataClear => match parse::<ClearDataRequest>(request) {
-                    Ok(request) => {
-                        return self.mutate(
-                            &mut state,
-                            command,
-                            request.request_id.clone(),
-                            json!(request),
-                            |state| {
-                                if let Err(error) = self.reset(state, true) {
-                                    return ApiResult::Failure(error);
-                                }
-                                match state.persistence.clear() {
-                                    Ok(()) => response(&state.snapshot),
-                                    Err(error) => {
-                                        state.snapshot.warning = Some(error.clone());
-                                        ApiResult::Failure(error)
-                                    }
-                                }
-                            },
-                        );
-                    }
-                    Err(error) => Err(error),
-                },
+                Command::ReportList
+                | Command::ReportGet
+                | Command::SettingsUpdate
+                | Command::DataClear
+                | Command::ReportRetry => unreachable!("storage dispatcher"),
             };
         DispatchOutcome {
             result: result.unwrap_or_else(ApiResult::Failure),
@@ -495,6 +461,12 @@ impl AppService {
     where
         F: FnOnce(&mut State) -> ApiResult<Value>,
     {
+        if state.inflight.as_ref() == Some(&id) {
+            return DispatchOutcome {
+                result: ApiResult::Failure(ApiError::validation()),
+                changed: None,
+            };
+        }
         // 正規化した DTO の照合子だけを記録し、キーを含む要求本文を保持しない。
         let normalized = request.to_string();
         let fingerprint = state.fingerprinters.each_ref().map(|builder| {
@@ -552,11 +524,18 @@ impl AppService {
         state.face = FaceIngress::default();
         state.domain = None;
         state.activity_error = None;
-        state.report_unavailable = false;
+        state.report_error = None;
         state.history = Default::default();
         state.requested_history = None;
         state.away_history_candidate = None;
         state.generation = generation;
+        self.generation.store(generation, Ordering::SeqCst);
+        state.reports.queue.cancel();
+        if clear {
+            state.reports = Default::default();
+            state.reports.queue.completion_seq = state.snapshot.completion_seq.get();
+        }
+        state.report_wake.notify();
         state.snapshot.revision = revision;
         state.snapshot.emitted_at = now;
         state.snapshot.runtime = RuntimeState::stopped(state.snapshot.runtime.profile);
@@ -564,7 +543,7 @@ impl AppService {
             AppSnapshot::initial(state.snapshot.runtime_id.clone(), now).presence;
         state.snapshot.session = None;
         state.snapshot.reminder = None;
-        state.snapshot.warning = state.persistence.warning();
+        state.snapshot.warning = state.persistence_warning.clone();
         if clear {
             state.snapshot.jobs.clear();
         } else {
@@ -586,7 +565,7 @@ impl AppService {
                 "停止してから開始し直してください。",
             ));
         }
-        if state.persistence.warning().is_some() {
+        if state.persistence_warning.is_some() {
             return Err(storage_error());
         }
         if request.report_mode == ReportMode::Ai {
@@ -622,7 +601,12 @@ impl AppService {
         self.monitor
             .start(generation, state.snapshot.settings.excluded_apps.clone())
             .map_err(|_| ApiError::new(ErrorCode::Internal, "PC 情報の取得を開始できません。"))?;
+        if let Err(error) = self.report_worker.start() {
+            self.monitor.stop();
+            return Err(error);
+        }
         state.generation = generation;
+        self.generation.store(generation, Ordering::SeqCst);
         state.activity = None;
         state.snapshot.revision = revision;
         state.snapshot.emitted_at = now;
@@ -642,7 +626,7 @@ impl AppService {
             request.profile,
         )));
         state.activity_error = None;
-        state.report_unavailable = false;
+        state.report_error = None;
         refresh_inputs(state, self.clock.read());
         Ok(())
     }
@@ -747,10 +731,21 @@ impl AppService {
             sitting::project(state);
             state.snapshot.revision = revision;
             state.snapshot.emitted_at = timestamp;
-            // B-06 未接続：回答だけを受け付け、ジョブ・カードの作成成功を返さない。
+            let report_id = if request.answer == Answer::Yes {
+                state
+                    .snapshot
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.report_job_id.clone())
+            } else {
+                None
+            };
+            if request.answer == Answer::Yes && report_id.is_none() {
+                return Err(state.report_error.clone().unwrap_or_else(internal));
+            }
             Ok(RespondReminderResult {
                 snapshot: state.snapshot.clone(),
-                report_id: None,
+                report_id,
             })
         })();
         match result {
@@ -827,6 +822,8 @@ fn activity_unavailable() -> ApiError {
     )
 }
 
+#[cfg(test)]
+mod report_tests;
 #[cfg(test)]
 mod sitting_tests;
 #[cfg(test)]

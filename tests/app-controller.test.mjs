@@ -4,7 +4,7 @@ import { fromBuild, flush, deferred } from "./helpers.mjs";
 
 const { MockGateway } = await fromBuild("adapters/mock/MockGateway.js");
 const { AppController } = await fromBuild("application/AppController.js");
-const { createSnapshot, createReport, MINUTE } = await fromBuild("contracts/fixtures.js");
+const { createSnapshot, createReport, createJob, MINUTE } = await fromBuild("contracts/fixtures.js");
 
 test("離席から安定化中を経た帰席で一度だけあいさつし、unknownでは帰席待ちを解除する", async () => {
   for (const intermediate of ["uncertain", "unknown"]) {
@@ -102,6 +102,45 @@ test("明示的な再試行の完了で、同じカードを新しい内容へ�
   await controller.actions.retryReport(); gateway.advanceBy(2_000); await flush();
   assert.equal(controller.getState().report.report.status, "ready");
   assert.equal(controller.getState().report.report.attempt, 2);
+});
+test("再試行の応答より先にローカル生成が完了しても読み込み中へ戻さない", async () => {
+  const gateway = new MockGateway(); const controller = new AppController(gateway);
+  await controller.connect(); gateway.loadScenario("reportFailed"); await flush();
+  const retry = gateway.retryReport.bind(gateway);
+  gateway.retryReport = async input => {
+    const accepted = structuredClone(await retry(input));
+    gateway.advanceBy(2_000); await flush();
+    return accepted;
+  };
+  await controller.actions.retryReport(); await flush();
+  assert.equal(controller.getState().report.phase, "ready");
+  assert.equal(controller.getState().report.report.attempt, 2);
+});
+test("Yesの応答より先に完成しても表示中の別カードを上書きしない", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("reminder");
+  const initial = gateway.getSnapshot();
+  const old = createReport("previous-report", "previous-session");
+  const next = createReport("new-report", initial.session.id);
+  const oldJob = { ...createJob(old, "ready"), completionSeq: 1 };
+  initial.jobs = [oldJob]; initial.completionSeq = 1;
+  let receive;
+  gateway.connect = async callback => { receive = callback; return structuredClone(initial); };
+  gateway.listReports = async () => ({ ok: true, data: { items: [], nextCursor: null } });
+  gateway.getReport = async id => ({ ok: true, data: id === old.id ? old : next });
+  gateway.respond = async () => {
+    const accepted = structuredClone(initial); accepted.revision++; accepted.reminder = null;
+    accepted.session.reportJobId = next.id; accepted.jobs.push(createJob(next, "queued"));
+    const completed = structuredClone(accepted); completed.revision++; completed.completionSeq = 2;
+    completed.jobs[1] = { ...completed.jobs[1], status: "ready", completionSeq: 2 };
+    receive(completed); await flush();
+    return { ok: true, data: { snapshot: accepted, reportId: next.id } };
+  };
+  const controller = new AppController(gateway); await controller.connect();
+  await controller.actions.openReport(old.id); await controller.actions.answer("yes"); await flush();
+  assert.equal(controller.getState().report.report.id, old.id);
+  assert.equal(controller.getState().queuedReportCount, 1);
+  controller.actions.closeReport(); await flush();
+  assert.equal(controller.getState().report.report.id, next.id);
 });
 
 test("初期バッファの別 runtime を revision 順に並べず、退役した状態を復活させない", async () => {

@@ -1,12 +1,12 @@
 use super::tests::{FakeClock, error_code, external, snapshot};
 use super::*;
-struct Rig {
-    service: AppService,
-    clock: Arc<FakeClock>,
+pub(super) struct Rig {
+    pub(super) service: AppService,
+    pub(super) clock: Arc<FakeClock>,
     sequence: u64,
 }
 impl Rig {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let clock = Arc::new(FakeClock(AtomicU64::new(1_000_000)));
         let service = AppService::with_clock(
             clock.clone(),
@@ -21,6 +21,11 @@ impl Rig {
                 Some(Id::try_from("sitting-tracking".to_string()).unwrap());
             state.snapshot.runtime.activity = ActivityPhase::Running;
             state.snapshot.runtime.camera = CameraPhase::Waiting;
+            state.snapshot.runtime.consent = Consent {
+                activity: true,
+                history: true,
+                external_report: false,
+            };
             state.domain = Some(crate::domain::Engine::new(
                 crate::domain::timings::Timings::DEMO,
             ));
@@ -31,7 +36,7 @@ impl Rig {
             sequence: 0,
         }
     }
-    fn step(&mut self, ms: u64, detected: bool, idle: u64) -> Value {
+    pub(super) fn step(&mut self, ms: u64, detected: bool, idle: u64) -> Value {
         self.clock.0.fetch_add(ms, Ordering::Relaxed);
         self.sequence += 1;
         let now = self.clock.read();
@@ -57,21 +62,21 @@ impl Rig {
         ));
         input
     }
-    fn run(&mut self, seconds: u64, detected: bool, idle: u64) {
+    pub(super) fn run(&mut self, seconds: u64, detected: bool, idle: u64) {
         for _ in 0..seconds {
             self.step(1_000, detected, idle);
         }
     }
-    fn stable(&mut self) {
+    pub(super) fn stable(&mut self) {
         self.run(5, true, 0);
         assert_eq!(snapshot(&self.service).presence.value, Presence::Present);
     }
-    fn answer_request(&self, id: &str, answer: &str) -> Value {
+    pub(super) fn answer_request(&self, id: &str, answer: &str) -> Value {
         let view = snapshot(&self.service);
         let reminder = view.reminder.unwrap();
         json!({"requestId":id,"trackingId":view.runtime.tracking_id.unwrap(),"sessionId":reminder.session_id,"reminderId":reminder.id,"answer":answer})
     }
-    fn answer(&self, request: Value) -> DispatchOutcome {
+    pub(super) fn answer(&self, request: Value) -> DispatchOutcome {
         self.service
             .dispatch("main", Command::ReminderRespond, Some(request))
     }
@@ -113,7 +118,7 @@ fn live_samples_reach_a_demo_prompt_and_no_is_idempotent_without_a_report() {
     assert_eq!(error_code(rig.answer(old)), ErrorCode::StaleReminder);
 }
 #[test]
-fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
+fn yes_registers_one_job_without_resetting_the_sitting_clock() {
     let mut rig = Rig::new();
     rig.stable();
     rig.run(35, true, 0);
@@ -122,8 +127,8 @@ fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
     let ApiResult::Success(value) = first.result else {
         panic!("expected accepted answer");
     };
-    assert!(value["reportId"].is_null());
-    assert!(value["snapshot"]["jobs"].as_array().unwrap().is_empty());
+    assert!(value["reportId"].is_string());
+    assert_eq!(value["snapshot"]["jobs"].as_array().unwrap().len(), 1);
     let frozen = rig
         .service
         .state
@@ -146,13 +151,7 @@ fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
         after.session.as_ref().unwrap().elapsed_ms,
         original.elapsed_ms
     );
-    assert!(
-        after
-            .warning
-            .unwrap()
-            .message
-            .contains("カードは作成していません")
-    );
+    assert_eq!(after.jobs[0].status, JobStatus::Queued);
     rig.run(9, true, 0);
     assert!(snapshot(&rig.service).reminder.is_none());
     rig.step(1_000, true, 0);
@@ -161,7 +160,7 @@ fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
     rig.run(5, false, 60_000);
     assert_eq!(snapshot(&rig.service).presence.value, Presence::Away);
     assert!(snapshot(&rig.service).reminder.is_none());
-    assert!(snapshot(&rig.service).jobs.is_empty());
+    assert_eq!(snapshot(&rig.service).jobs.len(), 1);
     assert_eq!(
         rig.service.state.lock().unwrap().requested_history.as_ref(),
         Some(&frozen)
