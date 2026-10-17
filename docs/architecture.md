@@ -4,6 +4,8 @@
 
 先行実装：共通型、Gateway ポート、表示用コントローラー、モック、UI ひな型を整備した。実センサー・Rust Domain・AI・保存は未接続。[表示開発ガイド](ui-development.md) から phase3 までの表示を先行開発できる。
 
+B-01 で AppService の初期状態、Rust IPC、TauriGateway、応答検証と実アプリの表示接続を追加した。実装済みの範囲と未接続コマンドの動作は [B-01 メモ](backend-runtime-contract.md) を参照。
+
 ## 1. 構成と責務
 
 Tauri 2 + React + TypeScript + Rust を使用する。顔検出は WebView 内、PC 情報取得・判定・予約・保存・AI 通信は Rust に置く。**時間判定とレポート予約の実行主体を Rust に集め、画面の開閉・GIF の再生から独立させる。**

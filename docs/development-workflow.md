@@ -14,7 +14,7 @@ B の実装では [B担当の詳細計画](backend-development-plan.md) のブ�
 | OS | 統合・デモは Windows。Windows 11 x64 をチームの基準環境とする案 |
 | 依存固定 | `package-lock.json` と `src-tauri/Cargo.lock` を共有。通常の取得は `npm ci` |
 | 現在使える npm コマンド | `dev`、`dev:mock`、`test`、`build`、`preview`、`tauri` |
-| 未整備 | 実 Gateway・顔モデル資産準備・本番ロジック、CI、Node / Rust 版固定 |
+| 未整備 | 顔モデル資産準備・センサー・本番の判定と生成、CI、Node / Rust 版固定 |
 
 上記はこの端末の確認値で、2人の環境での動作確認を保証するものではない。最初に両端末で起動・ビルドを確認し、問題がなければ `.node-version` に `22.12.0`、`rust-toolchain.toml` に `1.99.0` を固定する。採用版を変える場合は2人で確認し、CI も同時に更新する。
 
@@ -41,7 +41,7 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。現在、通常起動は未接続の案内画面。UI は `npm run dev:mock` で開発でき、カメラ・本番通知・本番レポートは未接続。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri 起動は B-01 の実 IPC で停止中の状態と空一覧を表示し、ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発でき、カメラ・本番通知・本番レポートは未接続。
 
 ## 3. 並行開発用に追加する環境
 
