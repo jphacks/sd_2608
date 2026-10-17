@@ -13,7 +13,8 @@
 - B-02 の PC 情報取得と開始・停止を実装し、develop/backend へ取り込み済み。[B-02 メモ](backend-pc-activity.md) を参照。
 - B-03 の顔検出・入力受付・解放・手動入力を実装し、develop/backend へ取り込み済み。[B-03 メモ](backend-face-detection.md) を参照。
 - B-04 の在席・セッション・区切り・休憩通知と回答を実装し、develop/backend へ取り込み済み。[B-04 メモ](backend-presence-reminder.md) を参照。
-- B-05 の履歴・マスク・設定保存・キー保護・保存カード参照を実装した。[B-05 メモ](backend-history-storage.md) に検証と保存形式を記載。生成・予約・復帰処理の強化は B-06〜09 の後続作業。
+- B-05 の履歴・マスク・設定保存・キー保護・保存カード参照を実装し、develop/backend へ取り込み済み。[B-05 メモ](backend-history-storage.md) を参照。
+- B-06 のローカルカード生成・離席5分予約・重複防止・再試行・表示キュー接続を実装した。[B-06 メモ](backend-report-coordinator.md) に検証と競合時の扱いを記載。AI と復帰処理の強化は B-07〜09 の後続作業。
 
 B担当の完成目標は、実 Windows アプリで次の操作が通ること。
 
@@ -81,7 +82,7 @@ git switch -c feat/backend-runtime-contract
 | B-03 | `feat/backend-face-detection` | B-01、統合時は B-02 | 実カメラの顔有無を Rust へ渡し、開始・停止できる |
 | B-04 | `feat/backend-presence-reminder` | B-01〜03 | 実データから在席・区切り・Yes／No 通知が動く |
 | B-05 | `feat/backend-history-storage` | B-04 | セッション履歴の固定・設定保存・カード保存の基盤ができる |
-| B-06 | `feat/backend-report-scheduler` | B-04、05 | Yes／離席5分後のローカルカードが完成・即表示される |
+| B-06 | `feat/backend-report-coordinator` | B-04、05 | Yes／離席5分後のローカルカードが完成・即表示される |
 | B-07 | `feat/backend-ai-provider` | B-05、06 | 同意した AI で要約でき、失敗・再試行も扱える |
 | B-08 | `fix/backend-lifecycle-recovery` | B-01〜07 | ロック・スリープ・再接続・停止競合を通し確認できる |
 | B-09 | `test/backend-integration` | B-08、A の表示 | デモ用単体アプリと確認記録がそろう |
@@ -239,6 +240,6 @@ cargo test --manifest-path src-tauri/Cargo.toml --locked
 | M2：ローカルのレポート | B-05〜06 | Yes と離席後の両経路で、帰席条件なしに履歴カードが表示される |
 | M3：AI・停止・実機統合 | B-07〜09 | AI 要約、失敗、保存、停止・復帰、A の表示まで通る |
 
-直近の次の作業は **B-05：`feat/backend-history-storage`**。B-04 を develop/backend へ取り込んだ後、その最新地点から分岐する。B-04 のイベント接続点・未生成の扱い・実機確認の残りは [実装・検証メモ](backend-presence-reminder.md) を参照。
+直近の次の作業は **B-07：`feat/backend-ai-provider`**。B-06 を develop/backend へ取り込んだ後、その最新地点から分岐する。ローカル生成・予約・保存競合と残る実機確認は [B-06 の実装・検証メモ](backend-report-coordinator.md) を参照。
 
 残り時間が厳しい場合も、顔・PC 情報・通知・Yes／自然離席のローカルカード・停止を優先する。AI の接続先を増やす、姿勢や日次記録へ着手する、といった拡張より、両経路を実演できる状態を先に確保する。

@@ -2,6 +2,8 @@
 
 対象：`feat/backend-history-storage`。B-04 を `develop/backend` にマージした `1067110` から分岐。[B担当の計画](backend-development-plan.md) の B-05 に対応する。通信 DTO・A の Props は変更していない。
 
+後続更新：B-05 は `develop/backend` へ取り込み済み。[B-06](backend-report-coordinator.md) で自動作成・予約・再試行と状態ロックの分離を追加した。以下の未接続記述は B-05 時点の記録。
+
 ## 実装した範囲
 
 | ファイル | 責務 |

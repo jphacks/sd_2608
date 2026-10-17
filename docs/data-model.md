@@ -269,4 +269,6 @@ JSON は `{ schemaVersion: 1, ... }` で包み、一時ファイルへの書き�
 
 B-05 の保存形式は `settings.json: { schemaVersion, revision, values: SettingsInput, secretId: Id | null }` と `reports.json: { schemaVersion, reports: Report[] }`。secretId は `secrets/<ID>.bin` の DPAPI 暗号文への参照で、キー本文ではない。生タイトルは履歴に入れず、原文の一致確認にはプロセス内だけのランダム化した指紋を使う。離席確定待ちには顔欠落開始時点の固定コピーを一つ保持し、通常の30分バッファが進んでも離席開始直前の区間を失わない。詳細は [B-05 メモ](backend-history-storage.md)。
 
+B-06 の内部 Job は単調時計の期限・実行世代・試行番号を持ち、固定履歴・設定 revision・同意・モードを Coordinator が対応付ける。Wire の型は変更しない。ローカル完成は job:ready / report:local。保存失敗の failed カードは通常の保存配列へ混ぜず、メモリー上の一覧・取得へ重ねる。未実行予約やこの一時カードは再起動で復元しない。completionSeq は削除をまたいでも同一 runtime 内で減らさない。詳細は [B-06 メモ](backend-report-coordinator.md)。
+
 将来の日次記録は別ファイル・別 schema とする。現在のレポート保存を「毎日の記録」機能と同一視しない。
