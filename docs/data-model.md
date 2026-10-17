@@ -2,6 +2,8 @@
 
 作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。Domain の判定処理と保存は後続作業。
 
+B-02 の Rust 内部入力は [`ports/activity.rs`](../src-tauri/src/ports/activity.rs) に分離した。内部の ActivitySample は UTC の取得時刻と単調時計の経過値を持ち、Serialize を実装しない。ウィンドウ情報を AppSnapshot へ追加せず、通常 UI・ログへの露出を避ける。[取得・消去の詳細](backend-pc-activity.md) を参照。
+
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 
 ## 1. 共通ルール

@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：共通型・AppGateway・MockGateway・Controller に加え、B-01 の Rust DTO・10コマンドの入口・TauriGateway・応答検証を実装済み。状態取得・空一覧・停止と削除の入口を提供し、センサー・保存・生成の未接続処理はエラーにする。詳細は [B-01 メモ](backend-runtime-contract.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
+実装状況：B-01 の Rust DTO・10コマンド・TauriGateway・応答検証に加え、B-02 で Windows の PC 取得と開始・停止を接続した。現段階の runtime_start はローカルモードの PC 取得のみで、camera=off、presence=unknown と未接続機能の説明を返す。顔検出・判定・保存・生成は後続作業。詳細は [B-01 メモ](backend-runtime-contract.md)・[B-02 メモ](backend-pc-activity.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 

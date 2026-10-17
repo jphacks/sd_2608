@@ -1,5 +1,7 @@
 # B-01 実装・検証メモ
 
+以下は B-01 時点の記録。B-02 で PC 取得と runtime_start を接続した最新状況は [PC情報取得メモ](backend-pc-activity.md) を参照。
+
 対象ブランチ：`feat/backend-runtime-contract`（分岐元：`develop/backend`）。[B担当の計画](backend-development-plan.md) の B-01 を実装した。カメラ・PC 取得・通知判定・保存・レポート生成は、引き続き後続作業とする。
 
 ## 1. 実装したもの
