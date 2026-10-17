@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：TypeScript の共通型・`AppGateway`・IPC コマンド表・MockGateway・表示用コントローラーを実装済み。実際の Tauri コマンドと TauriGateway は未実装。[表示開発ガイド](ui-development.md) のモックで UI を先行開発できる。
+実装状況：共通型・AppGateway・MockGateway・Controller に加え、B-01 の Rust DTO・10コマンドの入口・TauriGateway・応答検証を実装済み。状態取得・空一覧・停止と削除の入口を提供し、センサー・保存・生成の未接続処理はエラーにする。詳細は [B-01 メモ](backend-runtime-contract.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 
@@ -112,7 +112,7 @@ Tauri イベントは **`app://snapshot`** の1種類とし、payload は `AppSn
 
 ```ts
 export interface AppGateway {
-  connect(onSnapshot: (state: AppSnapshot) => void): Promise<AppSnapshot>;
+  connect(onSnapshot: (state: AppSnapshot) => void, onConnectionError?: (error: ApiError | null) => void): Promise<AppSnapshot>;
   start(input: Omit<StartRuntimeRequest, "requestId">): Promise<ApiResult<AppSnapshot>>;
   stop(trackingId: Id): Promise<ApiResult<AppSnapshot>>;
   respond(input: Omit<RespondReminderRequest, "requestId">):

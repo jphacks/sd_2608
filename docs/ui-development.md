@@ -20,7 +20,7 @@ npm run build
 
 `npm test` は TypeScript の型検査と、Node 標準テストによるモック・コントローラーの検証を行う。追加のテストパッケージは不要。一時生成物は OS の一時ディレクトリへ出し、終了後に削除する。
 
-`npm run dev` と本番ビルドは準備中の案内画面を表示する。モックは **開発時かつ mode が mock のときだけ** 動的に読み込む。本番で未接続の実処理をモックで成功したように見せない。
+通常のブラウザー起動は Tauri 起動の案内を表示する。B-01 で TauriGateway を接続し、`npm run tauri dev` では実 IPC の停止中の状態と空一覧を表示できる。モックは **開発時かつ mode が mock のときだけ** 動的に読み込み、未接続処理をモックで成功したように見せない。
 
 ## 2. 最初に読むファイルと変更範囲
 
@@ -101,8 +101,8 @@ npm run build
 
 ## 6. ロジック担当が後で接続する範囲
 
-TauriGateway と Rust の AppService、顔検出・Windows 取得、レポート予約・AI Provider・保存を実装し、`useAppController(realGateway)` と既存 `AppView` を接続する。IPC のコマンド表は `src/contracts/ipc.ts`、通信 DTO は `src/contracts/domain.ts` と `api.ts` にある。
+TauriGateway と Rust の AppService の初期状態は B-01 で接続済み。顔検出・Windows 取得、レポート予約・AI Provider・保存は後続の実装。`useAppController(realGateway)` と既存 AppView の接続を維持して進める。IPC のコマンド表は `src/contracts/ipc.ts`、通信 DTO は `src/contracts/domain.ts` と `api.ts` にある。
 
 実 Gateway はイベント購読・再同期・応答検証・カメラ解放を所有する。コントローラーは古い revision と旧接続の応答を破棄し、初回接続で過去カードを自動表示せず、新しい完成カードを表示キューへ入れる。契約を変更したらモックとこの資料も同じ変更で更新する。
 
-型・モック・表示用コントローラーまでが今回の実装で、Rust の本番ロジックや完成した UI を実装済みとは扱わない。姿勢・日次記録は今回の契約へ混ぜず、[アーキテクチャ](architecture.md) の独立モジュールとして後から追加する。
+型・モック・表示用コントローラーと [B-01 の接続基盤](backend-runtime-contract.md) を実装済みで、センサー・通知判定・生成や完成した UI は後続作業。姿勢・日次記録は今回の契約へ混ぜず、[アーキテクチャ](architecture.md) の独立モジュールとして後から追加する。

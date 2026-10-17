@@ -4,7 +4,9 @@
 
 表示担当は `npm ci` → `npm run dev:mock` で、実センサー・API なしの開発画面を開けます。
 共通型・操作の接続口・phase3 までのシナリオ・GIF の差し替え方法は、[表示開発ガイド](docs/ui-development.md) を参照してください。
-確認コマンドは `npm test` と `npm run build` です。実ロジックと Tauri への接続は準備中です。
+確認コマンドは `npm test` と `npm run build` です。
+`npm run tauri dev` では Rust の停止中の状態と空の一覧を表示できます。カメラ・PC 取得・レポート生成は未接続です。
+[B-01 の実装・検証メモ](docs/backend-runtime-contract.md)
 
 [開発計画・設計書](docs/development-plan.md)
 
