@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import { fromBuild } from "./helpers.mjs";
 const { freshData, reducePochi, restoreData, checkedSettings, settleCards, dataForStorage } = await fromBuild("pochi/model.js");
 const { animationSpec, frameAt, moveTo, initialMotion, finishMotion } = await fromBuild("pochi/animation.js");
@@ -41,7 +42,7 @@ test("設定の変更を反映し、不正値と二重開始を拒否する", ()
   assert.equal(d.active.nextReminderWorkMs, 70_000);
   for (const elapsedMs of [NaN, Infinity, -100, 0]) assert.equal(tick(d, elapsedMs), d);
 });
-test("全107フレームの順序・時間と逆再生が一致し、1回動作を確実に終了する", () => {
+test("全107フレームと元HTMLの動作割当・時間を維持する", () => {
   const expected = { idle: [8,3600], reminder:[8,1440], rest:[14,4200], record:[8,1760], welcome:[20,2710], turn_sit:[23,3320], rest_to_sit:[26,2530] };
   let count = 0;
   for (const [name,[n,total]] of Object.entries(expected)) {
@@ -52,9 +53,11 @@ test("全107フレームの順序・時間と逆再生が一致し、1回動作�
     assert.equal(frameAt(name,total).done,!spec.loop);
   }
   assert.equal(count,107);
-  const rise=animationSpec("rest_to_sit"), down=animationSpec("sit_to_rest");
-  assert.deepEqual(down.frames,[...rise.frames].reverse()); assert.deepEqual(down.durations,[...rise.durations].reverse());
-  assert.equal(frameAt("sit_to_rest",2530).done,true);
+  const turn=animationSpec("turn_sit"), down=animationSpec("sit_to_rest");
+  assert.deepEqual(down.frames,turn.frames); assert.deepEqual(down.durations,turn.durations);
+  assert.equal(down.gifSrc,"/pet/pochi/reference/turn_sit.gif");
+  assert.equal(frameAt("sit_to_rest",3319).done,false);
+  assert.equal(frameAt("sit_to_rest",3320).done,true);
 });
 test("起き上がり中のYesは姿勢遷移を完了してから伏せ、古い完了通知を無視する", () => {
   const resting={...initialMotion(),id:"rest"};
@@ -132,4 +135,25 @@ test("記録の旧形式を移行し、離席を休憩時間に含める設定�
   d=decodeData(JSON.stringify(raw));assert.equal(d.active.persisted,true);assert.deepEqual(d.cards,[]);
   d=reducePochi(d,{type:"settings",now:1000,settings:{...d.settings,awayCountsAsRest:true}});
   d=reducePochi(d,{type:"leave",now:1000});d=tick(d,5000);assert.equal(d.active.restMs,5000);assert.equal(d.active.workMs,0);assert.equal(d.active.breaks.length,0);
+});
+
+// These hashes were read directly from the seven embedded GIFs in the supplied HTML.
+test("表示する7個のGIFが原型の素材とバイト単位で一致する", () => {
+  const expected={idle:"0708c035a93bd97cdd152e29b21568c7eb568e9ff22e830588db8477f9409c42",welcome:"087f9c714db7f7d08232bd6cf60f7fb1d3a947bab90a02adc6dbcfd47df9f702",rest:"a20d0decbd15a3961f1ddd5eb47e873c7f8b1a9461421e27b9f2ee273e78658f",rest_to_sit:"9c1d0b192d5b351df3b2261156f2c05c7485b29c9455d37862d4d66cd3a11365",turn_sit:"34d127279c48e0b58fbbb157c78c72913f8e41433b8a8f59058146b173b35561",reminder:"d6588e8cb7028fc52c1e5cb794e3b08ea06466945bd1656105338cf0a08eb521",record:"7c79ecbcb0cc96d06dc530eeee72e20e8baadbb4770cd31b835a620d707ceefa"};
+  for(const [id,sha] of Object.entries(expected)) {
+    const bytes=fs.readFileSync(`public${animationSpec(id).gifSrc}`);
+    assert.equal(bytes.subarray(0,6).toString(),"GIF89a");
+    assert.equal(createHash("sha256").update(bytes).digest("hex"),sha);
+  }
+});
+test("コンソールなしでポチからメニュー・離席・帰席・設定・終了へ進める", () => {
+  let time=1000;
+  const c=new PochiController({load:()=>({data:freshData(),notice:""}),save:()=>{},release:()=>{}},{monotonic:()=>time,wall:()=>time},false,()=>"pet-menu");
+  c.mount();c.tap();assert.equal(c.getSnapshot().panel,"start");c.start("UI確認","work");
+  c.completeAnimation(c.getSnapshot().motion.token);c.tap();assert.equal(c.getSnapshot().panel,"menu");
+  c.leave();assert.equal(c.getSnapshot().data.active.phase,"away");time+=1000;c.tap();
+  assert.equal(c.getSnapshot().panel,"welcome");assert.equal(c.getSnapshot().data.active.phase,"working");
+  c.openSettings();assert.equal(c.getSnapshot().panel,"settings");c.closePanel();
+  assert.equal(c.getSnapshot().panel,"quiet");c.end(true);assert.equal(c.getSnapshot().panel,"report");
+  assert.equal(c.getSnapshot().data.history.length,1);c.unmount();
 });
