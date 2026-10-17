@@ -2,7 +2,7 @@
 
 作成日：2026-10-17。これは新しく実装する契約。プロトタイプのコマンドをそのまま公開するものではない。[型・データモデル](data-model.md) の DTO を共通で使う。
 
-実装状況：B-01〜03 の通信・PC・顔入力に加え、B-04 の在席・区切り・通知と回答を実装済み。runtime_start 後にカメラを開始し、入力から presence・session・reminder を更新する。履歴固定・保存・レポート生成は後続作業。B-04 時点の Yes は回答受付のみで reportId:null、未生成を明示する。詳細は [B-04 メモ](backend-presence-reminder.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
+実装状況：B-01〜04 の通信・PC・顔入力・在席・通知に加え、B-05 の履歴固定、settings_update、report_list / get、data_clear の保存接続を実装済み。Yes は履歴固定までで reportId:null、生成・予約が未接続であることを明示する。詳細は [B-04 メモ](backend-presence-reminder.md) と [B-05 メモ](backend-history-storage.md)。[表示開発ガイド](ui-development.md) のモックも利用できる。
 
 ## 1. API の境界
 
@@ -91,7 +91,9 @@ export type RetryReportRequest = {
 - B-03 の顔入力受付結果は最新1,000件を保持する。キャッシュ外の古い連番や、同じ trackingId 内で source を変えた新規入力は validation。再送で入力の鮮度を延ばさない。
 - `reminder_respond` は失効した通知へ `staleReminder`。同じ要求の再送は成功結果を返すが、別要求で回答済み通知へ回答し直せない。
 - `settings_update` はキーを応答へ返さず `hasApiKey` のみ返す。Provider の形式・接続先変更時は旧キーを流用せず、新規キー登録が必要。設定変更で送信同意は引き継がない。
+- B-05 の設定保存は停止中・設定 revision 一致が条件。除外アプリは実行ファイル名を最大100件・各200文字。endpoint は2,048文字、model は200文字、キーは空白・制御文字なしの ASCII で最大4,096バイト。HTTPS、またはループバックの HTTP に限り、URL の認証情報・クエリー・フラグメントは拒否する。AI 設定の保存は可能だが、AI モードの開始・再試行は B-07 まで利用不可。
 - `report_list` の limit は1〜20。cursor は不透明なページ位置。削除後の古い cursor は再取得を案内する。
+- B-05 の cursor はプロセスとカード一覧の世代に結び付く。新規保存・更新・期限整理・削除・再起動の後は、cursor:null から取得し直す。読み出しでも7日の保持期限を確認する。保存失敗は storageFailure とし、data_clear では失敗しても監視停止・実行世代更新を先に確定する。
 - `report_retry` は元の固定履歴と現在の明示的同意を使う。現在の設定 revision をジョブへ取り込み、接続先が変わっていたら、その接続先で送ることを UI で確認してから再試行する。過去の失敗カードも同じ ID で再試行可能。
 
 ## 5. 状態イベントと同期

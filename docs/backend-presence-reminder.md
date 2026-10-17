@@ -2,6 +2,8 @@
 
 対象：`feat/backend-presence-reminder`。B-03 を `develop/backend` に取り込んだ `7ae892e` から分岐。[B担当の計画](backend-development-plan.md) の B-04 と、[機能仕様](requirements.md) の FR-01・02 に対応する。
 
+後続更新：B-04 は `develop/backend` へ取り込み済み。履歴固定・設定保存・カード参照は [B-05](backend-history-storage.md) で追加した。以下の未接続・検証記述は B-04 時点の記録。
+
 ## 実装した範囲
 
 | ファイル | 責務 |

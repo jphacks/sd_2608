@@ -5,8 +5,10 @@
 表示担当は `npm ci` → `npm run dev:mock` で、実センサー・API なしの開発画面を開けます。
 共通型・操作の接続口・phase3 までのシナリオ・GIF の差し替え方法は、[表示開発ガイド](docs/ui-development.md) を参照してください。
 確認コマンドは `npm test` と `npm run build` です。
-`npm run tauri dev` では、同意して開始すると PC 情報と顔の有無から在席・休憩通知を判定します。モデル・WASM は同梱します。履歴保存・レポート生成は後続作業です。
+`npm run tauri dev` では、同意して開始すると PC 情報と顔の有無から在席・休憩通知を判定し、マスク済みの作業履歴をメモリーに保持します。モデル・WASM は同梱します。設定と保存済みカードの復元に対応し、レポートの自動作成・予約は後続作業です。
 [B-01 の接続基盤](docs/backend-runtime-contract.md) / [B-02 のPC情報取得](docs/backend-pc-activity.md) / [B-03 の顔検出](docs/backend-face-detection.md) / [B-04 の在席・通知と検証](docs/backend-presence-reminder.md)
+
+[B-05 の履歴・設定・保存と検証](docs/backend-history-storage.md)
 
 [開発計画・設計書](docs/development-plan.md)
 
