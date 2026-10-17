@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fromBuild } from "./helpers.mjs";
-const { freshData, reducePochi, restoreData, checkedSettings } = await fromBuild("pochi/model.js");
+const { freshData, reducePochi, restoreData, checkedSettings, settleCards, dataForStorage } = await fromBuild("pochi/model.js");
 const { animationSpec, frameAt, moveTo, initialMotion, finishMotion } = await fromBuild("pochi/animation.js");
 const { LocalRepository, decodeData } = await fromBuild("pochi/repository.js");
 const { PochiController } = await fromBuild("pochi/controller.js");
@@ -79,7 +79,7 @@ test("二重起動で別の記録を上書きしない（リース期限後も�
 });
 test("コントローラーは休止・スリープを除外し、終了とpagehideでレポートを重複しない", () => {
   let time=1000, saved=freshData(); const repo={load:()=>({data:saved,notice:""}),save:d=>{saved=d;},release:()=>{}};
-  const c=new PochiController(repo,{monotonic:()=>time,wall:()=>time},true,()=>"id"); c.mount(); c.start("demo","study");
+  const c=new PochiController(repo,{monotonic:()=>time,wall:()=>time},true,()=>"id"); c.mount(); c.setSpeed(1); c.start("demo","study");
   time+=1000;c.tick(); assert.equal(saved.active.workMs,0); // UI ticks; periodic persistence follows.
   assert.equal(c.getSnapshot().data.active.workMs,1000);
   c.setPaused(true);time+=100_000;c.tick();c.setPaused(false);time+=1000;c.tick();
@@ -97,13 +97,39 @@ test("短縮フローで設定中の通知・即Yes・メモ・歓迎待機・�
   const c=new PochiController({load:()=>({data:saved,notice:""}),save:d=>{saved=d;},release:()=>{}},
     {monotonic:()=>time,wall:()=>time},true,()=>"demo",text=>notifications.push(text));
   const finish=()=>c.completeAnimation(c.getSnapshot().motion.token);
-  c.mount();c.start("仕様の確認","work");finish();assert.equal(c.getSnapshot().motion.id,"rest");
+  c.mount();c.saveSettings({...saved.settings,remindMinutes:1});c.start("仕様の確認","work");finish();assert.equal(c.getSnapshot().motion.id,"rest");
   c.openSettings();for(let i=0;i<6;i++){time+=2000;c.tick();}
   assert.equal(c.getSnapshot().panel,"settings");assert.equal(c.getSnapshot().data.active.phase,"reminder");assert.equal(notifications.length,1);
   c.closePanel();c.accept();c.accept();assert.equal(c.getSnapshot().data.active.breaks.length,1);
   assert.equal(c.getSnapshot().motion.id,"rest_to_sit");finish();assert.equal(c.getSnapshot().motion.id,"sit_to_rest");finish();
   c.note("前半を確認","後半の相談");time+=2000;c.tick();c.returnToWork();
   assert.equal(c.getSnapshot().panel,"welcome");finish();assert.equal(c.getSnapshot().motion.id,"welcome");finish();assert.equal(c.getSnapshot().motion.id,"idle");
-  c.end(true);c.pageHide();assert.equal(saved.history.length,1);assert.equal(saved.history[0].restMs,2000);
+  c.end(true);c.pageHide();assert.equal(saved.history.length,1);assert.equal(saved.history[0].restMs,120000);
   assert.equal(saved.history[0].breaks[0].progress,"前半を確認");c.unmount();
+});
+
+test("離席5分後の予約は帰席しても残り、離席前の作業だけをレポートにする", () => {
+  let d=tick(start(),10000);
+  d=reducePochi(d,{type:"leave",now:11000}); assert.equal(d.active.phase,"away");assert.equal(d.active.breaks.length,0);
+  const due=d.cards[0].dueAt;assert.equal(due,311000);
+  d=reducePochi(d,{type:"return",now:12000});d=tick(d,20000);
+  assert.equal(d.active.workMs,30000);assert.equal(d.cards[0].status,"scheduled");
+  d=settleCards(d,due);assert.equal(d.cards[0].status,"generating");
+  d=settleCards(d,due+4200);assert.equal(d.cards[0].status,"ready");assert.equal(d.cards[0].session.workMs,10000);
+  d=reducePochi(d,{type:"end",now:due+5000});assert.equal(d.cards[0].session.workMs,10000);
+});
+test("保存オフでは現在の作業と途中レポートを主データ・予備コピーへ残さない", () => {
+  let d=start();const storage=memoryStorage(), repo=new LocalRepository(storage,"owner",()=>1000);repo.load();repo.save(d);
+  d=reducePochi(d,{type:"yes",now:2000,reason:"manual"});repo.save(d);
+  d=reducePochi(d,{type:"settings",now:2000,settings:{...d.settings,saveHistory:false}});repo.save(d);
+  assert.equal(decodeData(storage.getItem("pochi.manual.v1")).active,null);
+  assert.equal(decodeData(storage.getItem("pochi.manual.v1.backup")).active,null);
+  d=reducePochi(d,{type:"end",now:3000});assert.equal(d.history.length,1);assert.equal(dataForStorage(d).history.length,0);assert.equal(dataForStorage(d).cards.length,0);
+});
+test("記録の旧形式を移行し、離席を休憩時間に含める設定を反映する", () => {
+  let d=start();const raw=JSON.parse(JSON.stringify(d));delete raw.cards;delete raw.active.absences;delete raw.active.persisted;
+  for(const key of ["saveHistory","cameraDemo","postureDemo","awayCountsAsRest"])delete raw.settings[key];
+  d=decodeData(JSON.stringify(raw));assert.equal(d.active.persisted,true);assert.deepEqual(d.cards,[]);
+  d=reducePochi(d,{type:"settings",now:1000,settings:{...d.settings,awayCountsAsRest:true}});
+  d=reducePochi(d,{type:"leave",now:1000});d=tick(d,5000);assert.equal(d.active.restMs,5000);assert.equal(d.active.workMs,0);assert.equal(d.active.breaks.length,0);
 });
