@@ -1,5 +1,7 @@
 # B-02：PC 操作情報の取得
 
+以下は B-02 時点の記録。B-03 で顔検出と入力受付を接続した最新状況は [顔検出メモ](backend-face-detection.md) を参照。
+
 対象：`feat/backend-pc-activity`。B-01 を `develop/backend` に取り込んだ `48d7529` から分岐した。[B担当の計画](backend-development-plan.md) の B-02 に対応する。
 
 ## 実装した範囲

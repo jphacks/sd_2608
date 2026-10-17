@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>B-03 顔検出の模擬映像テスト</title>
+<h1>B-03 顔検出の模擬映像テスト</h1>
+<p>実カメラは使用しません。Canvas の単色映像で、同梱モデルの読込・推論・停止・再開を確認します。</p>
+<pre id="result" role="status">loading</pre>
+<script type="module">
+import { FaceDetectionController } from "/src/adapters/camera/FaceDetectionController.ts";
+import { browserCamera } from "/src/adapters/camera/browserCamera.ts";
+const output = document.querySelector("#result");
+const canvas = document.createElement("canvas"); canvas.width = 320; canvas.height = 240;
+const context = canvas.getContext("2d"); let frame = 0;
+const drawing = setInterval(() => { context.fillStyle = `rgb(0,0,${++frame % 100})`; context.fillRect(0, 0, 320, 240); }, 100);
+const tracks = []; let events = []; let currentVideo;
+const controller = new FaceDetectionController({ ...browserCamera,
+  getUserMedia: async () => { const stream = canvas.captureStream(10); tracks.push(...stream.getTracks()); return stream; },
+  createVideo: () => { currentVideo = document.createElement("video"); return currentVideo; },
+});
+function fail(message) { controller.stop(); clearInterval(drawing); output.textContent = `FAIL: ${message}`; }
+async function cycle(id) {
+  return new Promise((resolve, reject) => {
+    const inputs = [];
+    controller.start(id, async input => {
+      events.push(input); inputs.push(input);
+      if (input.kind !== "sample" || input.faceDetected !== false || input.trackingId !== id
+        || input.sequence !== inputs.length) { reject(new Error("Unexpected input")); return false; }
+      output.textContent = `${id}: ${inputs.length}/3`;
+      if (inputs.length === 3) {
+        controller.stop();
+        const count = events.length;
+        setTimeout(() => {
+          if (events.length !== count || currentVideo.srcObject !== null || tracks.some(t => t.readyState !== "ended")) reject(new Error("Resources survived stop"));
+          else resolve();
+        }, 1_200);
+      }
+      return true;
+    });
+  });
+}
+const timeout = setTimeout(() => fail("timeout"), 45_000);
+try { await cycle("first"); await cycle("second"); clearTimeout(timeout); clearInterval(drawing);
+  output.textContent = JSON.stringify({ result: "PASS", samples: events.length, cameraUsed: false,
+    restarts: 1, allNoFace: events.every(e => e.faceDetected === false), allTracksStopped: tracks.every(t => t.readyState === "ended") });
+} catch (error) { clearTimeout(timeout); fail(error.message); }
+addEventListener("pagehide", () => { controller.stop(); clearInterval(drawing); clearTimeout(timeout); });
+</script></html>

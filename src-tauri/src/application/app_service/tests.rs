@@ -467,7 +467,7 @@ fn start_requires_consent_is_idempotent_and_restart_rejects_late_samples_and_old
     send.send(Ok(external())).unwrap();
     let changed = received.recv_timeout(Duration::from_secs(2)).unwrap();
     assert_eq!(changed.runtime.activity, ActivityPhase::Running);
-    assert_eq!(changed.runtime.camera, CameraPhase::Off);
+    assert_eq!(changed.runtime.camera, CameraPhase::Waiting);
     assert_eq!(changed.presence.value, Presence::Unknown);
     assert!(service.latest_activity().is_some());
     assert!(
@@ -483,4 +483,53 @@ fn start_requires_consent_is_idempotent_and_restart_rejects_late_samples_and_old
     assert!(service.latest_activity().is_none());
     assert!(service.publisher.lock().unwrap().is_none());
     assert_eq!(snapshot(&service).runtime.phase, RuntimePhase::Stopped);
+}
+
+#[test]
+fn face_submit_updates_camera_once_stays_unknown_and_is_invalidated_on_stop() {
+    let (service, clock) = service();
+    activate(&service);
+    {
+        let mut state = service.state.lock().unwrap();
+        state.snapshot.runtime.profile = TimingProfile::Normal;
+        state.snapshot.session = None;
+        state.snapshot.reminder = None;
+        state.snapshot.jobs.clear();
+    }
+    let request = json!({"trackingId":"tracking-1","sequence":1,"observedAt":clock.read().utc_ms,"source":"camera","kind":"sample","faceDetected":true});
+    let first = service.dispatch("main", Command::FaceSubmit, Some(request.clone()));
+    assert!(matches!(first.result, ApiResult::Success(_)));
+    assert!(first.changed.is_some());
+    let again = service.dispatch("main", Command::FaceSubmit, Some(request.clone()));
+    assert_eq!(first.result, again.result);
+    assert!(again.changed.is_none());
+    let view = snapshot(&service);
+    assert_eq!(view.runtime.camera, CameraPhase::Running);
+    assert_eq!(view.presence.value, Presence::Unknown);
+    assert!(view.session.is_none());
+    assert!(view.reminder.is_none());
+    assert!(view.jobs.is_empty());
+    assert!(service.latest_face().unwrap().face_detected);
+    let mut manual = request.clone();
+    manual["source"] = json!("manual");
+    manual["sequence"] = json!(2);
+    assert_eq!(
+        error_code(service.dispatch("main", Command::FaceSubmit, Some(manual))),
+        ErrorCode::PermissionDenied
+    );
+    let mut stale = request.clone();
+    stale["trackingId"] = json!("old");
+    assert_eq!(
+        error_code(service.dispatch("main", Command::FaceSubmit, Some(stale))),
+        ErrorCode::StaleTracking
+    );
+    clock.0.fetch_add(5_001, Ordering::Relaxed);
+    assert_eq!(snapshot(&service).runtime.camera, CameraPhase::Error);
+    assert!(service.latest_face().is_none());
+    service.stop_for_lifecycle().unwrap();
+    assert!(service.state.lock().unwrap().face.latest.is_none());
+    assert_eq!(
+        error_code(service.dispatch("main", Command::FaceSubmit, Some(request))),
+        ErrorCode::StaleTracking
+    );
 }

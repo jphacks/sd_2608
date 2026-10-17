@@ -41,7 +41,7 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri 起動は実 IPC で停止中の状態と空一覧を表示し、同意後の開始で PC 情報のみ取得する（[B-02 メモ](backend-pc-activity.md)）。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発でき、カメラ・本番通知・本番レポートは未接続。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri 起動は実 IPC で停止中の状態と空一覧を表示し、同意後に PC 情報と顔の有無を取得する（[B-03 メモ](backend-face-detection.md)）。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発でき、本番の在席判定・通知・レポートは後続作業。
 
 ## 3. 並行開発用に追加する環境
 
@@ -51,7 +51,7 @@ npm run tauri dev
 |---|---|
 | `npm run dev:mock` | 実装済み。`vite --mode mock`。カメラ・Rust・実 API なしで UI を開く |
 | `npm test` | 実装済み。TypeScript の型検査と Node 標準テスト。コントローラー・モックの競合と状態遷移を確認。GIF 演出はブラウザーで確認 |
-| 顔モデルの準備 | 未実装。プロトタイプから MediaPipe の依存・モデル・ライセンスを移植し、対応 WASM のコピー処理を追加 |
+| 顔モデルの準備 | B-03 で実装済み。固定モデル・ライセンスを格納し、npm ci / dev / build で対応 WASM をコピー。手動実行は npm run assets:prepare |
 | 共通フィクスチャー | 実装済み。`src/contracts/fixtures.ts` と MockGateway の15シナリオ |
 | Windows CI | 未実装。フロント・Rust のテストとビルド。実 API キーやカメラを要求しない |
 | 表示資産 | manifest とお座り／伏せの仮 SVG を実装済み。完成 GIF と連続演出は表示担当が作成 |
