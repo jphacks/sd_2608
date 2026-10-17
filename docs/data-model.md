@@ -1,6 +1,8 @@
 # 型・データモデル設計
 
-作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。以下は `src/contracts/` に実装する TypeScript の定義案。Rust の DTO は同じ構造を Serde で表現する。**型名と意味を先に合意し、UI とモックもこの契約を使う。**
+作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust の DTO は未実装で、同じ構造を Serde で表現する。
+
+表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 
 ## 1. 共通ルール
 

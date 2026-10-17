@@ -1,51 +1,15 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { lazy, Suspense } from "react";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+// dev:mock 以外ではモックをロードしない。実 Gateway の接続はロジック担当が行う。
+const MockWorkbench = import.meta.env.DEV && import.meta.env.MODE === "mock"
+  ? lazy(() => import("./dev/MockWorkbench.js")) : null;
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
-
-  return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+export default function App() {
+  if (MockWorkbench) return <Suspense fallback={<p>表示開発環境を読み込んでいます…</p>}><MockWorkbench /></Suspense>;
+  return <main className="setup-notice">
+    <h1>休憩のおとも</h1>
+    <p>実センサー・レポート生成の接続は準備中です。</p>
+    {import.meta.env.DEV && <p>表示開発は <code>npm run dev:mock</code> で起動してください。</p>}
+  </main>;
 }
-
-export default App;

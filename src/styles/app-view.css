@@ -1,0 +1,20 @@
+.app-view { max-width: 960px; margin: 0 auto; padding: 24px; }
+.app-view header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.app-view h1 { font-size: 1.5rem; }
+.app-view h2 { font-size: 1.15rem; }
+.app-view h3 { font-size: 1rem; }
+.pet-and-report { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(280px, 1fr); align-items: start; gap: 24px; }
+.pet-stage { text-align: center; }
+.pet-stage__button { border: 0; background: transparent; padding: 0; }
+.pet-stage img { display: block; max-width: 100%; }
+.message-bubble, .report-panel, .runtime-controls, .settings-panel, .report-history { padding: 20px; border: 1px solid #d7cec2; border-radius: 12px; margin: 16px 0; background: #fff; overflow-wrap: anywhere; }
+.message-bubble--hard { border: 2px solid #9d502c; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.settings-panel fieldset { display: grid; gap: 12px; border: 0; padding: 0; }
+.settings-panel label { display: grid; gap: 4px; }
+.settings-panel input, .settings-panel select, .settings-panel textarea { width: 100%; box-sizing: border-box; }
+.check { display: flex !important; align-items: start; gap: 8px; margin: 12px 0; }
+.check input { width: auto; }
+.report-panel button, .runtime-controls > button, .report-history > button { margin: 8px 8px 0 0; }
+.app-view button:focus-visible, .app-view input:focus-visible, .app-view select:focus-visible { outline: 3px solid #91623c; outline-offset: 3px; }
+@media (max-width: 680px) { .pet-and-report { grid-template-columns: 1fr; gap: 0; } .app-view { padding: 12px; } }
