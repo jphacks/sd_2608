@@ -1,6 +1,6 @@
 # 型・データモデル設計
 
-作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。在席・通知 Domain は B-04 で接続済み。保存は後続作業。
+作成日：2026-10-17。[機能仕様](requirements.md) と [API](api-design.md) の共通契約。TypeScript の共通型を [`src/contracts/`](../src/contracts/index.ts)、B-01 の通信 DTO を [`src-tauri/src/ipc/dto.rs`](../src-tauri/src/ipc/dto.rs) に実装した。以下はその意味と構造の説明で、変更時はコードと本書を同時に更新する。Rust と TS の通信結果は同じ JSON ケースで検証する。在席・通知は B-04、履歴・設定・保存は B-05 で接続済み。
 
 B-02 の Rust 内部入力は [`ports/activity.rs`](../src-tauri/src/ports/activity.rs) に分離した。内部の ActivitySample は UTC の取得時刻と単調時計の経過値を持ち、Serialize を実装しない。ウィンドウ情報を AppSnapshot へ追加せず、通常 UI・ログへの露出を避ける。[取得・消去の詳細](backend-pc-activity.md) を参照。
 
@@ -266,5 +266,7 @@ erDiagram
 | GIF manifest | アプリ資産として Git 管理。各素材の時間・利用条件・出典も管理 |
 
 JSON は `{ schemaVersion: 1, ... }` で包み、一時ファイルへの書き込み後に置き換える。未知バージョン・破損を検出したら自動送信せず停止状態で起動し、元ファイルを保全して案内する。全データ削除は実行世代を進めてからメモリー・保存物を消し、進行中の処理による復活を防ぐ。
+
+B-05 の保存形式は `settings.json: { schemaVersion, revision, values: SettingsInput, secretId: Id | null }` と `reports.json: { schemaVersion, reports: Report[] }`。secretId は `secrets/<ID>.bin` の DPAPI 暗号文への参照で、キー本文ではない。生タイトルは履歴に入れず、原文の一致確認にはプロセス内だけのランダム化した指紋を使う。離席確定待ちには顔欠落開始時点の固定コピーを一つ保持し、通常の30分バッファが進んでも離席開始直前の区間を失わない。詳細は [B-05 メモ](backend-history-storage.md)。
 
 将来の日次記録は別ファイル・別 schema とする。現在のレポート保存を「毎日の記録」機能と同一視しない。

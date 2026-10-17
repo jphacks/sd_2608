@@ -124,6 +124,22 @@ fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
     };
     assert!(value["reportId"].is_null());
     assert!(value["snapshot"]["jobs"].as_array().unwrap().is_empty());
+    let frozen = rig
+        .service
+        .state
+        .lock()
+        .unwrap()
+        .requested_history
+        .clone()
+        .unwrap();
+    assert_eq!(frozen.session_id, original.id);
+    assert!(!frozen.segments.is_empty());
+    assert!(
+        frozen
+            .segments
+            .iter()
+            .all(|segment| segment.ended_at <= frozen.range_end)
+    );
     let after = snapshot(&rig.service);
     assert_eq!(after.session.as_ref().unwrap().id, original.id);
     assert_eq!(
@@ -146,6 +162,64 @@ fn yes_emits_a_request_but_does_not_claim_a_report_or_reset_the_clock() {
     assert_eq!(snapshot(&rig.service).presence.value, Presence::Away);
     assert!(snapshot(&rig.service).reminder.is_none());
     assert!(snapshot(&rig.service).jobs.is_empty());
+    assert_eq!(
+        rig.service.state.lock().unwrap().requested_history.as_ref(),
+        Some(&frozen)
+    );
+}
+#[test]
+fn natural_away_freezes_at_first_missing_and_stop_clears_uncommitted_history() {
+    let mut rig = Rig::new();
+    rig.stable();
+    rig.run(10, true, 0);
+    rig.step(1000, false, 60_000);
+    let first_missing = rig.clock.read().utc_ms;
+    rig.run(5, false, 60_000);
+    let frozen = rig
+        .service
+        .state
+        .lock()
+        .unwrap()
+        .requested_history
+        .clone()
+        .unwrap();
+    assert_eq!(frozen.range_end.get(), first_missing);
+    assert!(
+        frozen
+            .segments
+            .iter()
+            .all(|segment| segment.ended_at.get() <= first_missing)
+    );
+    rig.run(5, true, 0);
+    rig.run(10, true, 0);
+    assert_eq!(
+        rig.service.state.lock().unwrap().requested_history.as_ref(),
+        Some(&frozen)
+    );
+    rig.service.stop_for_lifecycle().unwrap();
+    let state = rig.service.state.lock().unwrap();
+    assert!(state.history.session_id.is_none());
+    assert!(state.requested_history.is_none());
+}
+#[test]
+fn away_confirmation_does_not_lose_the_first_seconds_of_the_frozen_thirty_minutes() {
+    let mut rig = Rig::new();
+    rig.stable();
+    rig.run(1900, true, 0);
+    rig.step(1000, false, 60_000);
+    let first_missing = rig.clock.read().utc_ms;
+    rig.run(5, false, 60_000);
+    let state = rig.service.state.lock().unwrap();
+    let frozen = state.requested_history.as_ref().unwrap();
+    assert_eq!(
+        frozen.range_start.get(),
+        first_missing - crate::domain::history::RETENTION_MS
+    );
+    assert_eq!(
+        frozen.segments.first().unwrap().started_at,
+        frozen.range_start
+    );
+    assert_eq!(frozen.range_end.get(), first_missing);
 }
 #[test]
 fn distinct_votes_cannot_be_created_by_snapshot_reads_or_retried_face_inputs() {

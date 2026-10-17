@@ -1,6 +1,9 @@
 //! Windows / Tauri / HTTP / Wire DTO に依存しない在席・通知の判定。
 pub mod boundary;
 pub mod event;
+pub mod history;
+#[cfg(test)]
+mod history_tests;
 pub mod presence;
 pub mod reminder;
 pub mod session;

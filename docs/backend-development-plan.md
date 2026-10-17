@@ -12,7 +12,8 @@
 - B-01 の共通 DTO・実 IPC・Gateway・初期画面の接続を実装し、develop/backend へ取り込み済み。[B-01 メモ](backend-runtime-contract.md) を参照。
 - B-02 の PC 情報取得と開始・停止を実装し、develop/backend へ取り込み済み。[B-02 メモ](backend-pc-activity.md) を参照。
 - B-03 の顔検出・入力受付・解放・手動入力を実装し、develop/backend へ取り込み済み。[B-03 メモ](backend-face-detection.md) を参照。
-- B-04 の在席・セッション・区切り・休憩通知と回答を実装した。[B-04 メモ](backend-presence-reminder.md) に検証と残る実機確認を記載。履歴・保存・レポート・復帰処理の強化は B-05〜09 の後続作業。
+- B-04 の在席・セッション・区切り・休憩通知と回答を実装し、develop/backend へ取り込み済み。[B-04 メモ](backend-presence-reminder.md) を参照。
+- B-05 の履歴・マスク・設定保存・キー保護・保存カード参照を実装した。[B-05 メモ](backend-history-storage.md) に検証と保存形式を記載。生成・予約・復帰処理の強化は B-06〜09 の後続作業。
 
 B担当の完成目標は、実 Windows アプリで次の操作が通ること。
 

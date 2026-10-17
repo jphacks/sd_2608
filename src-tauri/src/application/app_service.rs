@@ -1,6 +1,8 @@
 use super::activity_monitor::ActivityMonitor;
 use super::face_input::{FaceIngress, FaceObservation};
+mod history;
 mod sitting;
+use super::persistence::{Persistence, storage_error};
 use crate::{
     infrastructure::NativeActivitySource,
     ipc::dto::*,
@@ -52,6 +54,12 @@ struct State {
     domain: Option<crate::domain::Engine>,
     activity_error: Option<ActivityError>,
     report_unavailable: bool,
+    history: crate::domain::history::History,
+    // B-06 の調整処理への接続点。予約・ジョブの代用にはせず最後の固定コピーのみ保持。
+    requested_history: Option<HistorySnapshot>,
+    // 離席が確定するまで、顔欠落開始時点の直近30分を一つだけ仮固定する。
+    away_history_candidate: Option<(u64, u64, HistorySnapshot)>,
+    persistence: Persistence,
 }
 type SnapshotPublisher = Arc<dyn Fn(&AppSnapshot) + Send + Sync>;
 pub struct AppService {
@@ -119,6 +127,10 @@ impl AppService {
             domain: None,
             activity_error: None,
             report_unavailable: false,
+            history: Default::default(),
+            requested_history: None,
+            away_history_candidate: None,
+            persistence: Persistence::default(),
         }));
         let publisher: Arc<Mutex<Option<SnapshotPublisher>>> = Arc::default();
         let weak_state = Arc::downgrade(&state);
@@ -182,6 +194,23 @@ impl AppService {
             publisher,
         })
     }
+    /// Tauri setup だけから呼ぶ。テスト・診断の既定コンストラクターはユーザーデータに触れない。
+    pub fn initialize_storage(
+        &self,
+        repository: Arc<dyn crate::ports::storage::Repository>,
+        secrets: Arc<dyn crate::ports::storage::SecretStore>,
+    ) -> Result<(), ApiError> {
+        let mut state = self.state.lock().map_err(|_| internal())?;
+        if state.snapshot.runtime.phase != RuntimePhase::Stopped
+            || state.snapshot.revision != SafeInt::ZERO
+        {
+            return Err(internal());
+        }
+        state.persistence = Persistence::open(repository, secrets, self.clock.read().utc_ms);
+        state.snapshot.settings = state.persistence.settings_view();
+        state.snapshot.warning = state.persistence.warning();
+        Ok(())
+    }
     /// 内部の Domain/履歴用。通常 IPC へシリアライズせず、古い入力も返さない。
     pub fn latest_activity(&self) -> Option<ActivitySample> {
         let mut state = self.state.lock().ok()?;
@@ -229,39 +258,28 @@ impl AppService {
             Ok(state) => state,
             Err(_) => return reject(internal()),
         };
-        let result = match command {
-            Command::AppGetSnapshot => {
-                if request.is_some() {
-                    Err(ApiError::validation())
-                } else {
-                    if state.snapshot.runtime.phase != RuntimePhase::Running {
-                        return DispatchOutcome {
-                            result: response(&state.snapshot),
-                            changed: None,
+        let result =
+            match command {
+                Command::AppGetSnapshot => {
+                    if request.is_some() {
+                        Err(ApiError::validation())
+                    } else {
+                        if state.snapshot.runtime.phase != RuntimePhase::Running {
+                            return DispatchOutcome {
+                                result: response(&state.snapshot),
+                                changed: None,
+                            };
+                        }
+                        let now = self.clock.read();
+                        let Ok(timestamp) = SafeInt::try_from(now.utc_ms) else {
+                            return reject(internal());
                         };
-                    }
-                    let now = self.clock.read();
-                    let Ok(timestamp) = SafeInt::try_from(now.utc_ms) else {
-                        return reject(internal());
-                    };
-                    let Ok(revision) =
-                        SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
-                    else {
-                        return reject(internal());
-                    };
-                    let previous = (
-                        state.snapshot.runtime.camera,
-                        state.snapshot.presence.clone(),
-                        state.snapshot.warning.clone(),
-                        state.snapshot.session.clone(),
-                        state.snapshot.reminder.clone(),
-                        state.snapshot.runtime.activity,
-                    );
-                    if state.snapshot.runtime.phase == RuntimePhase::Running {
-                        refresh_inputs(&mut state, now);
-                    }
-                    let changed = previous
-                        != (
+                        let Ok(revision) =
+                            SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
+                        else {
+                            return reject(internal());
+                        };
+                        let previous = (
                             state.snapshot.runtime.camera,
                             state.snapshot.presence.clone(),
                             state.snapshot.warning.clone(),
@@ -269,109 +287,152 @@ impl AppService {
                             state.snapshot.reminder.clone(),
                             state.snapshot.runtime.activity,
                         );
-                    if changed {
-                        state.snapshot.revision = revision;
-                        state.snapshot.emitted_at = timestamp;
+                        if state.snapshot.runtime.phase == RuntimePhase::Running {
+                            refresh_inputs(&mut state, now);
+                        }
+                        let changed = previous
+                            != (
+                                state.snapshot.runtime.camera,
+                                state.snapshot.presence.clone(),
+                                state.snapshot.warning.clone(),
+                                state.snapshot.session.clone(),
+                                state.snapshot.reminder.clone(),
+                                state.snapshot.runtime.activity,
+                            );
+                        if changed {
+                            state.snapshot.revision = revision;
+                            state.snapshot.emitted_at = timestamp;
+                        }
+                        return DispatchOutcome {
+                            result: response(&state.snapshot),
+                            changed: changed.then(|| state.snapshot.clone()),
+                        };
                     }
-                    return DispatchOutcome {
-                        result: response(&state.snapshot),
-                        changed: changed.then(|| state.snapshot.clone()),
-                    };
                 }
-            }
-            Command::ReportList => parse::<ListReportsRequest>(request).and_then(|request| {
-                if !(1..=20).contains(&request.limit.get()) || request.cursor.is_some() {
-                    return Err(ApiError::validation());
-                }
-                Ok(response(ReportPage {
-                    items: vec![],
-                    next_cursor: None,
-                }))
-            }),
-            Command::ReportGet => parse::<GetReportRequest>(request)
-                .map(|_| failure(ErrorCode::NotFound, "レポートがありません。")),
-            Command::RuntimeStart => match parse::<StartRuntimeRequest>(request) {
-                Ok(request) => {
-                    return self.mutate(
-                        &mut state,
-                        command,
-                        request.request_id.clone(),
-                        json!(request),
-                        |state| {
-                            if request.expected_settings_revision
-                                != state.snapshot.settings.revision
-                            {
-                                return failure(
-                                    ErrorCode::StaleRevision,
-                                    "設定を読み直してください。",
-                                );
-                            }
-                            if !request.consent.activity
-                                || !request.consent.history
-                                || (request.report_mode == ReportMode::Ai
-                                    && !request.consent.external_report)
-                            {
-                                return failure(
-                                    ErrorCode::ConsentRequired,
-                                    "開始する機能の説明を確認してください。",
-                                );
-                            }
-                            match self.start(state, &request) {
-                                Ok(()) => response(&state.snapshot),
-                                Err(error) => ApiResult::Failure(error),
-                            }
-                        },
-                    );
-                }
-                Err(error) => Err(error),
-            },
-            Command::FaceSubmit => match parse::<FaceInput>(request) {
-                Ok(input) => return self.submit_face(&mut state, input),
-                Err(error) => Err(error),
-            },
-            Command::ReminderRespond => match parse::<RespondReminderRequest>(request) {
-                Ok(request) => {
-                    return self.mutate(
-                        &mut state,
-                        command,
-                        request.request_id.clone(),
-                        json!(request),
-                        |state| self.respond(state, &request),
-                    );
-                }
-                Err(error) => Err(error),
-            },
-            Command::SettingsUpdate => match parse::<UpdateSettingsRequest>(request) {
-                Ok(request) => {
-                    return self.mutate(
-                        &mut state,
-                        command,
-                        request.request_id.clone(),
-                        json!(request),
-                        |_| failure(ErrorCode::InvalidState, "設定の保存は未接続です（B-05）。"),
-                    );
-                }
-                Err(error) => Err(error),
-            },
-            Command::ReportRetry => match parse::<RetryReportRequest>(request) {
-                Ok(request) => {
-                    return self.mutate(
-                        &mut state,
-                        command,
-                        request.request_id.clone(),
-                        json!(request),
-                        |_| {
-                            failure(
-                                ErrorCode::InvalidState,
-                                "レポート生成は未接続です（B-06・B-07）。",
-                            )
-                        },
-                    );
-                }
-                Err(error) => Err(error),
-            },
-            Command::RuntimeStop => {
-                match parse::<StopRuntimeRequest>(request) {
+                Command::ReportList => parse::<ListReportsRequest>(request).and_then(|request| {
+                    let runtime = state.snapshot.runtime_id.clone();
+                    state
+                        .persistence
+                        .list(&request, self.clock.read().utc_ms, &runtime)
+                        .map(response)
+                }),
+                Command::ReportGet => parse::<GetReportRequest>(request).and_then(|request| {
+                    state
+                        .persistence
+                        .get(&request.report_id, self.clock.read().utc_ms)
+                        .map(response)
+                }),
+                Command::RuntimeStart => match parse::<StartRuntimeRequest>(request) {
+                    Ok(request) => {
+                        return self.mutate(
+                            &mut state,
+                            command,
+                            request.request_id.clone(),
+                            json!(request),
+                            |state| {
+                                if request.expected_settings_revision
+                                    != state.snapshot.settings.revision
+                                {
+                                    return failure(
+                                        ErrorCode::StaleRevision,
+                                        "設定を読み直してください。",
+                                    );
+                                }
+                                if !request.consent.activity
+                                    || !request.consent.history
+                                    || (request.report_mode == ReportMode::Ai
+                                        && !request.consent.external_report)
+                                {
+                                    return failure(
+                                        ErrorCode::ConsentRequired,
+                                        "開始する機能の説明を確認してください。",
+                                    );
+                                }
+                                match self.start(state, &request) {
+                                    Ok(()) => response(&state.snapshot),
+                                    Err(error) => ApiResult::Failure(error),
+                                }
+                            },
+                        );
+                    }
+                    Err(error) => Err(error),
+                },
+                Command::FaceSubmit => match parse::<FaceInput>(request) {
+                    Ok(input) => return self.submit_face(&mut state, input),
+                    Err(error) => Err(error),
+                },
+                Command::ReminderRespond => match parse::<RespondReminderRequest>(request) {
+                    Ok(request) => {
+                        return self.mutate(
+                            &mut state,
+                            command,
+                            request.request_id.clone(),
+                            json!(request),
+                            |state| self.respond(state, &request),
+                        );
+                    }
+                    Err(error) => Err(error),
+                },
+                Command::SettingsUpdate => match parse::<UpdateSettingsRequest>(request) {
+                    Ok(request) => {
+                        return self.mutate(
+                            &mut state,
+                            command,
+                            request.request_id.clone(),
+                            json!(request),
+                            |state| {
+                                if state.snapshot.runtime.phase != RuntimePhase::Stopped {
+                                    return failure(
+                                        ErrorCode::InvalidState,
+                                        "設定変更前に監視を停止してください。",
+                                    );
+                                }
+                                let result = (|| {
+                                    let revision = SafeInt::try_from(
+                                        state
+                                            .snapshot
+                                            .revision
+                                            .get()
+                                            .checked_add(1)
+                                            .ok_or_else(internal)?,
+                                    )
+                                    .map_err(|_| internal())?;
+                                    let now = SafeInt::try_from(self.clock.read().utc_ms)
+                                        .map_err(|_| internal())?;
+                                    let settings = state.persistence.update(&request)?;
+                                    state.snapshot.settings = settings;
+                                    state.snapshot.revision = revision;
+                                    state.snapshot.emitted_at = now;
+                                    state.snapshot.warning = state.persistence.warning();
+                                    Ok(state.snapshot.clone())
+                                })();
+                                match result {
+                                    Ok(snapshot) => response(snapshot),
+                                    Err(error) => ApiResult::Failure(error),
+                                }
+                            },
+                        );
+                    }
+                    Err(error) => Err(error),
+                },
+                Command::ReportRetry => match parse::<RetryReportRequest>(request) {
+                    Ok(request) => {
+                        return self.mutate(
+                            &mut state,
+                            command,
+                            request.request_id.clone(),
+                            json!(request),
+                            |_| {
+                                failure(
+                                    ErrorCode::InvalidState,
+                                    "レポート生成は未接続です（B-06・B-07）。",
+                                )
+                            },
+                        );
+                    }
+                    Err(error) => Err(error),
+                },
+                Command::RuntimeStop => match parse::<StopRuntimeRequest>(request) {
                     Ok(request) => return self.mutate(
                         &mut state,
                         command,
@@ -393,24 +454,31 @@ impl AppService {
                         },
                     ),
                     Err(error) => Err(error),
-                }
-            }
-            Command::DataClear => match parse::<ClearDataRequest>(request) {
-                Ok(request) => {
-                    return self.mutate(
-                        &mut state,
-                        command,
-                        request.request_id.clone(),
-                        json!(request),
-                        |state| match self.reset(state, true) {
-                            Ok(()) => response(&state.snapshot),
-                            Err(error) => ApiResult::Failure(error),
-                        },
-                    );
-                }
-                Err(error) => Err(error),
-            },
-        };
+                },
+                Command::DataClear => match parse::<ClearDataRequest>(request) {
+                    Ok(request) => {
+                        return self.mutate(
+                            &mut state,
+                            command,
+                            request.request_id.clone(),
+                            json!(request),
+                            |state| {
+                                if let Err(error) = self.reset(state, true) {
+                                    return ApiResult::Failure(error);
+                                }
+                                match state.persistence.clear() {
+                                    Ok(()) => response(&state.snapshot),
+                                    Err(error) => {
+                                        state.snapshot.warning = Some(error.clone());
+                                        ApiResult::Failure(error)
+                                    }
+                                }
+                            },
+                        );
+                    }
+                    Err(error) => Err(error),
+                },
+            };
         DispatchOutcome {
             result: result.unwrap_or_else(ApiResult::Failure),
             changed: None,
@@ -485,6 +553,9 @@ impl AppService {
         state.domain = None;
         state.activity_error = None;
         state.report_unavailable = false;
+        state.history = Default::default();
+        state.requested_history = None;
+        state.away_history_candidate = None;
         state.generation = generation;
         state.snapshot.revision = revision;
         state.snapshot.emitted_at = now;
@@ -493,7 +564,7 @@ impl AppService {
             AppSnapshot::initial(state.snapshot.runtime_id.clone(), now).presence;
         state.snapshot.session = None;
         state.snapshot.reminder = None;
-        state.snapshot.warning = None;
+        state.snapshot.warning = state.persistence.warning();
         if clear {
             state.snapshot.jobs.clear();
         } else {
@@ -514,6 +585,9 @@ impl AppService {
                 ErrorCode::InvalidState,
                 "停止してから開始し直してください。",
             ));
+        }
+        if state.persistence.warning().is_some() {
+            return Err(storage_error());
         }
         if request.report_mode == ReportMode::Ai {
             return Err(ApiError::new(
@@ -755,5 +829,7 @@ fn activity_unavailable() -> ApiError {
 
 #[cfg(test)]
 mod sitting_tests;
+#[cfg(test)]
+mod storage_tests;
 #[cfg(test)]
 mod tests;

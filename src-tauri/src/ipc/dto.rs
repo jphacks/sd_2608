@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 pub const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "u64", into = "u64")]
 pub struct SafeInt(u64);
 impl SafeInt {

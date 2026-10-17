@@ -133,7 +133,7 @@ fn unavailable_features_validate_requests_and_never_fake_success() {
         ErrorCode::ConsentRequired
     );
     assert_eq!(error_code(service.dispatch("main",Command::SettingsUpdate,Some(json!({"requestId":"settings","expectedSettingsRevision":0,
-        "values":{"reportMode":"local","provider":null,"excludedApps":[],"reducedMotion":false},"keyChange":{"kind":"replace","value":"do-not-retain"}})))),ErrorCode::InvalidState);
+        "values":{"reportMode":"ai","provider":null,"excludedApps":[],"reducedMotion":false},"keyChange":{"kind":"replace","value":"do-not-retain"}})))),ErrorCode::Validation);
     assert_eq!(
         error_code(service.dispatch(
             "main",
