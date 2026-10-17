@@ -2,18 +2,18 @@
 
 表示担当から共有する、現時点で採用している素材と実行可能なWindows参考実装です。個人の作業記録、実際の入力メモ、APIキー、ローカルテストデータは含めていません。
 
-大きい配布ファイルは [GitHub Release：ポチ日本語版・素材一式](https://github.com/jphacks/sd_2608/releases/tag/pochi-ja-handoff-v1.1.0) の添付ファイルからダウンロードしてください。操作フローと検証結果は、このディレクトリ内にも置いています。
+プログラム、全ソース、アニメーション、元プロトタイプをすべてこのPRの `handoff/pochi-ja/` に含めています。以下のファイル名を開き、GitHubの「Download raw file」から保存してください。ブランチ全体の「Code → Download ZIP」でも一括取得できます。
 
 ## まず使うファイル
 
 | ファイル | 内容・使い方 |
 | --- | --- |
-| [pochi-desktop-ja.zip](https://github.com/jphacks/sd_2608/releases/download/pochi-ja-handoff-v1.1.0/pochi-desktop-ja.zip) | 日本語版Windowsアプリ1.1。解凍して `Pochi.exe` を起動。説明書同梱 |
-| [pochi-desktop-ja-source.zip](https://github.com/jphacks/sd_2608/releases/download/pochi-ja-handoff-v1.1.0/pochi-desktop-ja-source.zip) | C# / WPF の全ソース、ビルドスクリプト、107枚の透過PNG、検証結果。解凍先の `pochi-desktop/build.ps1 -Test` でビルドと自動テスト |
-| [puppy-png-frames-v8.zip](https://github.com/jphacks/sd_2608/releases/download/pochi-ja-handoff-v1.1.0/puppy-png-frames-v8.zip) | 7グループ・107枚、各512×512の透過RGBA PNG。アクションごとの `manifest.json` と `timings.csv` にフレーム順序と表示時間を記載 |
-| [puppy-transparent-gifs-v8.zip](https://github.com/jphacks/sd_2608/releases/download/pochi-ja-handoff-v1.1.0/puppy-transparent-gifs-v8.zip) | 7グループ、512×512、透過背景のGIF。解凍後の `index.html` で背景色を変えて確認可能 |
+| [pochi-desktop-ja.zip](./pochi-desktop-ja.zip) | 日本語版Windowsアプリ1.1。解凍して `Pochi.exe` を起動。説明書同梱 |
+| [pochi-desktop-ja-source.zip](./pochi-desktop-ja-source.zip) | C# / WPF の全ソース、ビルドスクリプト、107枚の透過PNG、検証結果。解凍先の `pochi-desktop/build.ps1 -Test` でビルドと自動テスト |
+| [puppy-png-frames-v8.zip](./puppy-png-frames-v8.zip) | 7グループ・107枚、各512×512の透過RGBA PNG。アクションごとの `manifest.json` と `timings.csv` にフレーム順序と表示時間を記載 |
+| [puppy-transparent-gifs-v8.zip](./puppy-transparent-gifs-v8.zip) | 7グループ、512×512、透過背景のGIF。解凍後の `index.html` で背景色を変えて確認可能 |
 | `workflow-ja.md` | ユーザー指定の11段階の操作と現在の動作の対応 |
-| [prototype-original.html](https://github.com/jphacks/sd_2608/releases/download/pochi-ja-handoff-v1.1.0/prototype-original.html) | ユーザーから受領した元の対話プロトタイプ。旧文言・旧アニメーション割り当てを含む参考資料 |
+| [prototype-original.html](./prototype-original.html) | ユーザーから受領した元の対話プロトタイプ。旧文言・旧アニメーション割り当てを含む参考資料 |
 | `verification-ja.json` | 日本語版の196項目の自動チェック結果。107枚のPNGが元データと一致することも確認 |
 
 ## このリポジトリとの関係
