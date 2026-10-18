@@ -28,6 +28,53 @@ test("初回接続では過去カードを勝手に開かず、ペットから�
   assert.equal(controller.getState().report.phase, "ready");
 });
 
+test("作業履歴を20件で打ち切らず全ページ読み込み、最新カードを開く", async () => {
+  const gateway = new MockGateway();
+  const reports = Array.from({ length: 45 }, (_, index) => createReport(`report-${index}`));
+  const pages = [];
+  gateway.listReports = async ({ cursor, limit }) => {
+    pages.push(cursor);
+    const offset = Number(cursor ?? 0);
+    return { ok: true, data: { items: reports.slice(offset, offset + limit),
+      nextCursor: offset + limit < reports.length ? String(offset + limit) : null } };
+  };
+  gateway.getReport = async id => ({ ok: true, data: reports.find(report => report.id === id) });
+  const controller = new AppController(gateway); await controller.connect();
+  assert.deepEqual(pages, [null, "20", "40"]);
+  assert.equal(controller.getState().reportList.length, 45);
+  await controller.actions.openLatestReport();
+  assert.equal(controller.getState().report.report.id, "report-0");
+  await controller.dispose();
+});
+
+test("全履歴の2ページ目取得中に削除しても、一覧や最新カードを復活させない", async () => {
+  const gateway = new MockGateway();
+  const controller = new AppController(gateway); await controller.connect();
+  const pending = deferred();
+  gateway.listReports = async ({ cursor }) => cursor === null
+    ? { ok: true, data: { items: [createReport("old-1")], nextCursor: "next" } } : pending.promise;
+  let opened = false;
+  gateway.getReport = async () => { opened = true; return { ok: true, data: createReport("old-1") }; };
+  const reading = controller.actions.openLatestReport(); await flush();
+  await controller.actions.clearData();
+  pending.resolve({ ok: true, data: { items: [createReport("old-2")], nextCursor: null } });
+  await reading;
+  assert.deepEqual(controller.getState().reportList, []);
+  assert.equal(controller.getState().report.phase, "closed");
+  assert.equal(opened, false);
+  await controller.dispose();
+});
+
+test("履歴更新の失敗時には古い一覧から最新カードを開かない", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("reportReady");
+  const controller = new AppController(gateway); await controller.connect();
+  gateway.listReports = async () => ({ ok: false, error: { code: "internal", message: "読み込み失敗", retryable: true } });
+  await controller.actions.openLatestReport();
+  assert.equal(controller.getState().report.phase, "closed");
+  assert.equal(controller.getState().error.message, "読み込み失敗");
+  await controller.dispose();
+});
+
 test("離席中にも完成カードを即表示し、帰席を待たない", async () => {
   const gateway = new MockGateway(); const controller = new AppController(gateway);
   await controller.connect(); gateway.loadScenario("awayScheduled");

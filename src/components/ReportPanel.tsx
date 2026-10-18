@@ -28,6 +28,6 @@ export function ReportPanel({ state, queuedCount, busy, onClose, onRetry }: Repo
         {state.report.history.ocr.windows.map((window, index) => <section key={index}><h3>{window.appName}：{window.maskedTitle}</h3><p>{window.text}</p></section>)}
       </details>}
     </>}
-    <button onClick={onClose}>{queuedCount ? `次のカードへ（残り${queuedCount}件）` : "閉じる"}</button>
+    {onClose && <button onClick={onClose}>{queuedCount ? `次のカードへ（残り${queuedCount}件）` : "閉じる"}</button>}
   </section>;
 }

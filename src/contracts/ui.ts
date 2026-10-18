@@ -55,7 +55,7 @@ export type PetStageProps = {
 export type MessageBubbleProps = { bubble: BubbleViewModel; onAnswer(answer: "yes" | "no"): void };
 export type ReportPanelProps = {
   state: ReportPanelState; queuedCount: number; busy: boolean;
-  onClose(): void; onRetry(): void;
+  onClose?(): void; onRetry(): void;
 };
 export type SettingsPanelProps = {
   settings: SettingsView; disabled: boolean; onSave(input: SaveSettingsInput): Promise<void>;

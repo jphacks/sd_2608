@@ -2,6 +2,7 @@ import type { AppGateway } from "../ports/AppGateway.js";
 import { GatewayConnectionError } from "../ports/AppGateway.js";
 import type { ApiError, ApiResult, AppSnapshot, Id } from "../contracts/domain.js";
 import type { AppViewActions, AppViewModel, UiOperation } from "../contracts/ui.js";
+import type { ReportListItem } from "../contracts/api.js";
 import { finishMotion, initialMotion, moveTo } from "../pochi/animation.js";
 
 const connectionError = (): ApiError => ({ code: "internal", message: "接続または取得に失敗しました。再接続してください。", retryable: true });
@@ -177,15 +178,30 @@ export class AppController {
       if (epoch === this.epoch && mutation === this.mutation) this.publish({ pending: null, bubble: this.state.bubble ? { ...this.state.bubble, disabled: false } : null });
     }
   }
-  private async refreshReports(): Promise<void> {
+  private async refreshReports(): Promise<boolean> {
     const epoch = this.epoch; const read = ++this.listRead;
     this.publish({ reportListLoading: true });
     try {
-      const result = await this.gateway.listReports({ cursor: null, limit: 20 });
-      if (epoch !== this.epoch || read !== this.listRead) return;
-      if (result.ok) this.publish({ reportList: result.data.items });
-      else this.publish({ error: result.error });
-    } catch { if (epoch === this.epoch && read === this.listRead) this.publish({ error: connectionError() }); }
+      const items: ReportListItem[] = [];
+      let cursor: string | null = null;
+      const cursors = new Set<string>();
+      do {
+        const result = await this.gateway.listReports({ cursor, limit: 20 });
+        if (epoch !== this.epoch || read !== this.listRead) return false;
+        if (!result.ok) { this.publish({ error: result.error }); return false; }
+        items.push(...result.data.items);
+        cursor = result.data.nextCursor;
+        if (cursor !== null) {
+          if (cursors.has(cursor)) throw new Error("Repeated report cursor");
+          cursors.add(cursor);
+        }
+      } while (cursor !== null);
+      this.publish({ reportList: items });
+      return true;
+    } catch {
+      if (epoch === this.epoch && read === this.listRead) this.publish({ error: connectionError() });
+      return false;
+    }
     finally { if (epoch === this.epoch && read === this.listRead) this.publish({ reportListLoading: false }); }
   }
   private async openReport(reportId: Id): Promise<void> {
@@ -242,7 +258,11 @@ export class AppController {
     },
     saveSettings: async input => { await this.mutate("settings", () => this.gateway.updateSettings(input), value => value); },
     openReport: id => this.openReport(id),
-    openLatestReport: async () => { await this.refreshReports(); const latest = this.state.reportList[0]; if (latest) await this.openReport(latest.id); },
+    openLatestReport: async () => {
+      if (!await this.refreshReports()) return;
+      const latest = this.state.reportList[0];
+      if (latest) await this.openReport(latest.id);
+    },
     closeReport: () => {
       this.reportRead++;
       const snapshot = this.state.snapshot;
@@ -258,7 +278,7 @@ export class AppController {
         if (!finished) this.publish({ report: { phase: "loading", reportId: panel.report.id } });
       }
     },
-    refreshReports: () => this.refreshReports(),
+    refreshReports: async () => { await this.refreshReports(); },
     clearData: async () => {
       if (this.state.pending || this.state.connection !== "connected") return;
       // 削除要求より前の非同期読込が、削除後に UI を復活させない。
