@@ -47,7 +47,7 @@ Tauri の通常版・短縮デモでは、透明な背景とペット画像の�
 
 ## 休憩予告の確認
 
-予告の期限は Rust Domain の単調時計と `timings.rs` の `advance_notice_lead_ms`（通常3分・demo3秒）で判定し、`AppSnapshot.advanceNotice` として配信します。AppController が残り分／秒の文言と、閉じた runtime・tracking・session の記憶を管理します。設定・メニュー・履歴・カード・生成中の表示を優先し、予告による音や専用の強い演出はありません。手動顔入力の案内が付く短縮デモでも表示します。
+予告の期限は Rust Domain の単調時計と `timings.rs` の `advance_notice_lead_ms`（通常3分・demo3秒）で判定し、`AppSnapshot.advanceNotice` として配信します。AppController が残り分／秒の文言と、閉じた runtime・tracking・session の記憶を管理します。設定・メニュー・履歴・カード・生成中の表示を優先し、予告による音や専用の強い演出はありません。実カメラを使う短縮デモでも表示します。
 
 `npm run dev:mock` で「休憩の予告」を選ぶか、`?window=1&scenario=advanceNotice` を開くと、3分前の状態を確認できます。「+1分」で残り時間を進め、上部の✕でそのサイクルの予告だけを閉じます。「+1分」×3では予告を残し、「新しい区切り」で通常の休憩提案に切り替わります。
 

@@ -41,7 +41,7 @@ npm ci
 npm run tauri dev
 ```
 
-`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri は実 IPC で停止状態を表示し、同意後に PC 情報と顔の有無から在席・休憩通知を判定する（[B-04 メモ](backend-presence-reminder.md)）。B-05 で履歴・保存を、B-06 でローカル生成・離席5分予約を接続した（[B-06 の検証](backend-report-coordinator.md)）。開発用の手動顔入力は demo の短縮時間を使い、予約は5秒。ブラウザー通常起動は案内画面。UI は `npm run dev:mock` でも開発できる。B-07でAIも接続済み。利用時は停止中に接続先・モデル・APIキーを保存し、開始時に表示された送信先への同意を選ぶ。[接続形式と検証範囲](backend-ai-provider.md) を参照。
+`npm run tauri dev` が Vite も起動する。プロトタイプと本番はどちらもポート1420を使うため、同時起動しない。Tauri は実 IPC で停止状態を表示し、同意後に PC 情報と顔の有無から在席・休憩通知を判定する（[B-04 メモ](backend-presence-reminder.md)）。B-05 で履歴・保存を、B-06 でローカル生成・離席5分予約を接続した（[B-06 の検証](backend-report-coordinator.md)）。`npm run desktop:demo` も実カメラを使い、時間だけを短縮し、離席後のレポート予約は5秒になる。手動の顔入力操作は表示しない。ブラウザー通常起動は案内画面。カメラを使わないUI開発は `npm run dev:mock` で行う。B-07でAIも接続済み。利用時は停止中に接続先・モデル・APIキーを保存し、開始時に表示された送信先への同意を選ぶ。[接続形式と検証範囲](backend-ai-provider.md) を参照。
 
 ## 3. 並行開発用に追加する環境
 

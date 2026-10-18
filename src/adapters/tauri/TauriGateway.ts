@@ -36,8 +36,7 @@ export class TauriGateway implements AppGateway, FaceInputPort {
   private captureEpoch = 0;
   private starting = false;
   constructor(private readonly transport: IpcTransport, private readonly environment: GatewayEnvironment = browserEnvironment,
-    private readonly captures?: FaceCaptures, readonly window?: WindowAdapter,
-    private readonly manualDemo = false) {}
+    private readonly captures?: FaceCaptures, readonly window?: WindowAdapter) {}
   private releaseCapture(): void {
     ++this.captureEpoch;
     const capture = this.capture; this.capture = null;
@@ -145,7 +144,7 @@ export class TauriGateway implements AppGateway, FaceInputPort {
     return result;
   }
   start(input: Omit<StartRuntimeRequest, "requestId">) {
-    return this.manualDemo ? this.startManual(input) : this.startCapture(input, "camera");
+    return this.startCapture(input, "camera");
   }
   startManual(input: Omit<StartRuntimeRequest, "requestId">) {
     if (input.profile !== "demo" || !this.captures?.manual) return Promise.resolve(failure<AppSnapshot>(error("permissionDenied", "手動入力はデモ用の明示的な開始だけで利用できます。", false)));

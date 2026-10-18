@@ -26,7 +26,7 @@ npm run desktop:build
 # src-tauri/target/release/sd_2608.exe（開発サーバー不要）
 
 npm run desktop:demo
-# 実 PC 情報＋手動顔入力、30〜35秒で通知、離席確定後5秒で作成
+# 実カメラ＋実 PC 情報、30〜35秒で通知、離席確定後5秒で作成
 
 npm run desktop:build:demo
 # 同じ出力パスに短縮デモの EXE を作成

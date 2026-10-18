@@ -85,8 +85,6 @@ html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] 
 .pochi-app summary { cursor:pointer; }
 .pochi-app .status-line { margin:10px 0 0!important; font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums; }
 .pochi-app[data-reduced-motion=true] * { animation:none!important; transition:none!important; }
-.pochi-demo-controls { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; flex-wrap:wrap; gap:4px; padding:4px 8px; background:#FFF6E8; font-size:10px; z-index:5; }
-.pochi-demo-controls button { font-size:11px; padding:4px 8px; }
 @media(prefers-color-scheme:dark) {
   .pochi-app { --cream:#2A1E18; --card:#3A2B22; --ink:#FFF1E0; --sub:#D9BFA6; --line:#5A4234; --close-bg:#6A5040; --bis:#7A5638; --ear:#E0B08C; --sage:#9ED2B6; --sagebg:#24402F; }
   .pochi-app .bs .p,.pochi-app .menu-card.p,.pochi-app .settings-panel fieldset>button { color:#2A1E18; }
