@@ -149,8 +149,10 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
           <p className="sm">「レポートを作る」で、ここまでの作業を振り返れるよ。</p>
           <div className="bs"><button className="p" disabled={busy || state.bubble.disabled} onClick={() => { void actions.answer("yes"); }}>{state.bubble.yesLabel}</button><button disabled={busy || state.bubble.disabled} onClick={() => { void actions.answer("no"); }}>{state.bubble.noLabel}</button></div>
         </section>}
-        {generating && <div role="status"><p className="m">ここまでの作業記録をまとめています。</p><div className="dots" aria-hidden="true"><span /><span /><span /></div></div>}
-        {scheduled && <p role="status" className="sm">席を離れる前の作業レポートを、まもなく作成します。席に戻っても作成は続きます。</p>}
+        {(generating || scheduled) && <div role="status">
+          <p className={generating ? "m" : "sm"}>{generating ? "ここまでの作業記録をまとめています。" : "席を離れる前の作業レポートを、まもなく作成します。席に戻っても作成は続きます。"}</p>
+          <div className="dots" aria-hidden="true"><span /><span /><span /></div>
+        </div>}
         {(panel === "home" || panel === "quiet") && <ReportPanel state={state.report} queuedCount={state.queuedReportCount} busy={busy || !running} onClose={state.queuedReportCount ? actions.closeReport : undefined} onRetry={() => retry()} />}
         {panel === "settings" && settings ? <>
           <SettingsPanel key={`${snapshot?.runtimeId}-${settings.revision}`} settings={settings} disabled={busy || running} onSave={actions.saveSettings} />

@@ -51,7 +51,7 @@ try {
     socket.send(JSON.stringify({ id, method, params }));
   });
   await call("Emulation.setDeviceMetricsOverride", { width: 440, height: 760, deviceScaleFactor: 1, mobile: false });
-  for (const page of ["pet-ui-smoke", "advance-notice-smoke", "window-click-through-smoke"]) {
+  for (const page of ["pet-ui-smoke", "advance-notice-smoke", "report-generation-smoke", "window-click-through-smoke"]) {
     await call("Page.navigate", { url: `${origin}/tests/browser/${page}.html` });
     let output;
     for (let attempt = 0; attempt < 200; attempt++) {

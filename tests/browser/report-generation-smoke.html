@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>離席レポートのローディング表示テスト</title>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import PochiApp from "/src/pochi/PochiApp.tsx";
+import { AppController } from "/src/application/AppController.ts";
+import { MockGateway } from "/src/adapters/mock/MockGateway.ts";
+const gateway = new MockGateway(), controller = new AppController(gateway);
+const root = createRoot(document.querySelector("#app"));
+const output = document.querySelector("#result"), checks = [];
+const paint = async () => {
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+};
+const check = (condition, label) => { if (!condition) throw Error(label); checks.push(label); };
+const bubble = () => document.querySelector('.bub:not([hidden]):not([aria-hidden="true"])');
+const loader = () => bubble()?.querySelector('[role="status"] .dots');
+const start = () => controller.actions.start({ profile: "demo", expectedSettingsRevision: gateway.getSnapshot().settings.revision,
+  reportMode: "local", consent: { activity: true, history: true, externalReport: false } });
+controller.subscribe(() => root.render(React.createElement(PochiApp, {
+  state: controller.getState(), actions: controller.actions, profile: "demo", desktop: true,
+})));
+try {
+  await controller.connect(); await start(); await paint();
+  document.querySelector(".bubble-close").click();
+  await new Promise(resolve => setTimeout(resolve, 200)); await paint();
+  gateway.advanceBy(10_000); gateway.setPresence("away"); await paint();
+  check(gateway.getSnapshot().jobs[0]?.status === "scheduled" && !!loader(),
+    "吹き出しを閉じていても、離席確定で作成待ちのローディングを表示");
+  const awayAnimation = getComputedStyle(loader().firstElementChild).animationName;
+  check(loader().children.length === 3 && awayAnimation === "pochi-dots",
+    "既存の3つの点のアニメーションを使う");
+  check(loader().parentElement.textContent.includes("まもなく作成します"), "作成待ちを作成中と区別して案内");
+  gateway.advanceBy(4_000); gateway.setPresence("present"); await paint();
+  check(gateway.getSnapshot().jobs[0].status === "scheduled" && !!loader(),
+    "作成待ちの間に席に戻ってもローディングを継続");
+  gateway.advanceBy(1_000); await paint();
+  check(gateway.getSnapshot().jobs[0].status === "running" && !!loader()
+    && loader().parentElement.textContent.includes("まとめています") && !bubble().textContent.includes("まもなく作成します"),
+    "5秒後の作成開始でアニメーションを残し、案内を切り替える");
+  gateway.advanceBy(2_000); await paint();
+  check(!loader() && controller.getState().report.phase === "ready" && !!bubble()?.querySelector(".report-panel"),
+    "完成したらローディングを消してレポートを表示");
+  controller.actions.closeReport();
+  gateway.advanceBy(35_000); await paint();
+  const yes = [...bubble().querySelectorAll("button")].find(button => button.textContent === "レポートを作る");
+  yes.click(); await paint();
+  check(!!loader() && loader().children.length === 3 && getComputedStyle(loader().firstElementChild).animationName === awayAnimation
+    && loader().parentElement.textContent.includes("まとめています"), "Yes を押した場合も同じローディング表示");
+  await controller.actions.stop(); await paint();
+  check(!loader(), "記録を停止して作成が取り消されたらローディングを消す");
+  await start(); gateway.advanceBy(10_000); gateway.setPresence("away"); gateway.advanceBy(5_000); await paint();
+  gateway.setPresence("present"); await paint();
+  check(!!loader() && gateway.getSnapshot().jobs.at(-1).status === "running", "作成中の帰席でもローディングを継続");
+  gateway.advanceBy(2_000); await paint();
+  check(!loader() && controller.getState().report.phase === "ready", "作成中に帰席した場合も完成したレポートに切り替える");
+  output.textContent = JSON.stringify({ result: "PASS", checks, cameraUsed: false }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}`; }
+addEventListener("pagehide", () => { void controller.dispose(); });
+</script></html>
