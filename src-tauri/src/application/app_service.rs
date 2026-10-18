@@ -673,9 +673,7 @@ impl AppService {
         state.snapshot.presence =
             AppSnapshot::initial(state.snapshot.runtime_id.clone(), now).presence;
         state.face = FaceIngress::default();
-        state.domain = Some(crate::domain::Engine::new(sitting::timings(
-            request.profile,
-        )));
+        state.domain = Some(crate::domain::Engine::new(sitting::timings(state)));
         state.activity_error = None;
         state.report_error = None;
         refresh_inputs(state, self.clock.read());
@@ -883,3 +881,5 @@ mod sitting_tests;
 mod storage_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod timing_settings_tests;

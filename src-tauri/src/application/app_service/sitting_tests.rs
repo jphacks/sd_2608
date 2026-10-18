@@ -89,7 +89,13 @@ impl Rig {
                 }),
             );
         }
-        let input = json!({"trackingId":"sitting-tracking","sequence":self.sequence,"observedAt":now.utc_ms,"source":"manual","kind":"sample","faceDetected":detected});
+        let view = self.service.state.lock().unwrap().snapshot.clone();
+        let source = if view.runtime.profile == TimingProfile::Demo {
+            "manual"
+        } else {
+            "camera"
+        };
+        let input = json!({"trackingId":view.runtime.tracking_id.unwrap(),"sequence":self.sequence,"observedAt":now.utc_ms,"source":source,"kind":"sample","faceDetected":detected});
         assert!(matches!(
             self.service
                 .dispatch("main", Command::FaceSubmit, Some(input.clone()))

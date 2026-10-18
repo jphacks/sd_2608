@@ -22,10 +22,77 @@ fn request(revision: u64, key: KeyChange) -> UpdateSettingsRequest {
             reduced_motion: true,
             ocr_enabled: false,
             notification_sound: NotificationSound::Dog,
+            timings: TimingProfiles::default(),
         },
         key_change: key,
     }
 }
+#[test]
+fn legacy_timing_defaults_and_independent_profiles_round_trip_on_disk() {
+    let directory = tempfile::tempdir().unwrap();
+    let repository = Arc::new(FileRepository::new(directory.path().to_path_buf()));
+    let secrets = Arc::new(MemorySecretStore::default());
+    let mut input = request(3, KeyChange::Keep);
+    let mut legacy = serde_json::to_value(&input.values).unwrap();
+    legacy.as_object_mut().unwrap().remove("timings");
+    std::fs::write(
+        directory.path().join("settings.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "schemaVersion":1, "revision":3, "values":legacy, "secretId":null
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let mut store = Persistence::open(repository.clone(), secrets.clone(), 0);
+    assert!(store.warning().is_none());
+    assert_eq!(store.settings_view().timings, TimingProfiles::default());
+    let mut profiles = serde_json::to_value(TimingProfiles::default()).unwrap();
+    for (profile, scale) in [("normal", 2), ("demo", 3)] {
+        for value in profiles[profile].as_object_mut().unwrap().values_mut() {
+            *value = serde_json::json!(value.as_u64().unwrap() * scale);
+        }
+    }
+    input.values.timings = serde_json::from_value(profiles).unwrap();
+    let expected = store.update(&input).unwrap();
+    let restored = Persistence::open(repository, secrets, 0);
+    assert_eq!(restored.settings_view().timings, expected.timings);
+    assert_eq!(expected.timings.normal.first_ms.get(), 3_600_000);
+    assert_eq!(expected.timings.demo.first_ms.get(), 90_000);
+}
+
+#[test]
+fn rejects_invalid_timing_values_and_relations_without_changing_saved_settings() {
+    let mut store = Persistence::default();
+    let original = store.settings_view();
+    for (key, value) in [
+        ("firstMs", 0),
+        ("idleMs", 1_500),
+        ("reportDelayMs", 86_401_000),
+        ("advanceNoticeLeadMs", 1_801_000),
+        ("firstMs", 2_101_000),
+        ("firstLimitMs", 3_601_000),
+        ("cooldownMs", 601_000),
+        ("switchIdleMs", 11_000),
+    ] {
+        let mut input = request(0, KeyChange::Keep);
+        let mut profiles = serde_json::to_value(&input.values.timings).unwrap();
+        profiles["normal"][key] = serde_json::json!(value);
+        input.values.timings = serde_json::from_value(profiles).unwrap();
+        assert_eq!(
+            store.update(&input).unwrap_err().code,
+            ErrorCode::Validation,
+            "{key}"
+        );
+        assert_eq!(store.settings_view(), original);
+    }
+    let mut input = request(0, KeyChange::Keep);
+    input.values.timings.demo.advance_notice_lead_ms = n(0);
+    input.values.timings.demo.report_delay_ms = n(0);
+    input.values.timings.demo.cooldown_ms = n(0);
+    input.values.timings.demo.yes_grace_ms = n(0);
+    assert!(store.update(&input).is_ok());
+}
+
 #[test]
 fn notification_sound_defaults_for_legacy_settings_and_persists_all_choices() {
     let mut request = request(0, KeyChange::Keep);

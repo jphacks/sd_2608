@@ -7,6 +7,7 @@ import { ReportHistory } from "../components/ReportHistory.js";
 import { AnimatedBubble } from "../components/AnimatedBubble.js";
 import { PochiSprite } from "./PochiSprite.js";
 import "./pochi.css";
+import { formatDuration } from "../presentation/timingSettings.js";
 
 const duration = (ms: number) => {
   const seconds = Math.floor(ms / 1000);
@@ -155,7 +156,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
         </div>}
         {(panel === "home" || panel === "quiet") && <ReportPanel state={state.report} queuedCount={state.queuedReportCount} busy={busy || !running} onClose={state.queuedReportCount ? actions.closeReport : undefined} onRetry={() => retry()} />}
         {panel === "settings" && settings ? <>
-          <SettingsPanel key={`${snapshot?.runtimeId}-${settings.revision}`} settings={settings} disabled={busy || running} onSave={actions.saveSettings} />
+          <SettingsPanel key={`${snapshot?.runtimeId}-${settings.revision}`} settings={settings} profile={profile} disabled={busy || running} onSave={actions.saveSettings} />
           {desktop && <label className="check"><input type="checkbox" checked={pinned} onChange={event => {
             const value = event.target.checked; setPinned(value); void actions.pinWindow(value);
           }} />ほかのウィンドウより手前に表示</label>}
@@ -177,7 +178,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
           {panel === "start" && snapshot ? <section aria-label="作業の記録を開始"><h3>作業の記録を始める？</h3>
             {settings?.ocrEnabled && <p className="sm">OCR はオンです。AI 要約の作成時に全ウィンドウの文字を取得し、作業履歴と照合した文字を履歴と一緒に送信・保存します。画像は保存・送信しません。AI に送信せず記録する場合、OCR は使いません。</p>}
             <label className="check"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />{manual ? "手動で入力した在席状況" : "カメラでの在席確認"}と PC の使用状況を使い、一部の情報を伏せた作業履歴を記録することに同意する</label>
-            {usesAi ? <label className="check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />「レポートを作る」を選んだ直後と、席を離れたことを確認してから{profile === "demo" ? "5秒" : "5分"}後に、作業履歴を {settings?.provider?.endpoint}（{settings?.provider?.model}）へ送信することに同意する</label> : <p className="sm">作業履歴はこの端末内に保存します。</p>}
+            {usesAi ? <label className="check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />「レポートを作る」を選んだ直後と、席を離れたことを確認してから{formatDuration(settings!.timings[profile].reportDelayMs)}後に、作業履歴を {settings?.provider?.endpoint}（{settings?.provider?.model}）へ送信することに同意する</label> : <p className="sm">作業履歴はこの端末内に保存します。</p>}
             <div className="bs"><button className="p" disabled={busy || !consent || (!!usesAi && !externalConsent)} onClick={() => begin(!!usesAi)}>{usesAi ? "AI 要約を使って記録" : "この端末だけに記録"}</button>{usesAi && <button disabled={busy || !consent} onClick={() => begin(false)}>AI に送信せず記録</button>}</div>
           </section> : <><p className="m">タップして、今日の作業を始めよう</p><div className="bs"><button className="p" disabled={busy} onClick={() => setPanel("start")}>作業を記録</button><button onClick={() => setPanel("menu")}>メニュー</button></div></>}
         </>}

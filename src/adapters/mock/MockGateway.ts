@@ -8,6 +8,7 @@ import type {
 } from "../../contracts/api.js";
 import { createJob, createReport, createSnapshot, FIXTURE_NOW, MINUTE } from "../../contracts/fixtures.js";
 import type { ScenarioId } from "../../contracts/fixtures.js";
+import { validateTimingProfiles } from "../../contracts/timings.js";
 
 const copy = <T>(value: T): T => structuredClone(value);
 const ok = <T>(data: T): ApiResult<T> => ({ ok: true, data: copy(data) });
@@ -35,12 +36,12 @@ export class MockGateway implements AppGateway {
   async dispose(): Promise<void> { this.listeners.clear(); }
   getSnapshot(): AppSnapshot { return copy(this.snapshot); }
   private id(prefix: string): Id { return `mock-${prefix}-${++this.serial}`; }
-  private unit(): number { return this.snapshot.runtime.profile === "demo" ? 1_000 : MINUTE; }
+  private timings() { return this.snapshot.settings.timings[this.snapshot.runtime.profile]; }
   private emit(): void {
     const { session, runtime, presence } = this.snapshot;
-    const remaining = 30 * this.unit() - (session?.elapsedMs ?? 0);
+    const remaining = this.timings().firstMs - (session?.elapsedMs ?? 0);
     this.snapshot.advanceNotice = runtime.phase === "running" && presence.value === "present"
-      && session?.endedAt === null && remaining > 0 && remaining <= 3 * this.unit()
+      && session?.endedAt === null && remaining > 0 && remaining <= this.timings().advanceNoticeLeadMs
       ? { sessionId: session.id, remainingMs: remaining } : null;
     this.snapshot.revision++;
     this.snapshot.emittedAt = this.now;
@@ -51,9 +52,9 @@ export class MockGateway implements AppGateway {
       id: this.id("session"), startedAt: this.now - elapsed, endedAt: null,
       endReason: null, elapsedMs: elapsed, reportJobId: null,
     };
-    this.nextPromptAt = this.now - elapsed + 35 * this.unit();
+    this.nextPromptAt = this.now - elapsed + this.timings().firstLimitMs;
     this.nextPromptCause = "initialLimit";
-    this.boundaryEligibleAt = this.now - elapsed + 30 * this.unit();
+    this.boundaryEligibleAt = this.now - elapsed + this.timings().firstMs;
     this.hardNextAt = -Infinity;
   }
   private showReminder(cause: "boundary" | "initialLimit" | "snoozeLimit" | "hardLimit"): void {
@@ -61,7 +62,7 @@ export class MockGateway implements AppGateway {
     if (!session || this.snapshot.reminder) return;
     this.snapshot.reminder = {
       id: this.id("reminder"), sessionId: session.id, source: "sitting",
-      level: session.elapsedMs >= 60 * this.unit() ? "hard" : "normal",
+      level: session.elapsedMs >= this.timings().hardMs ? "hard" : "normal",
       cause, shownAt: this.now,
     };
   }
@@ -106,11 +107,11 @@ export class MockGateway implements AppGateway {
     if (!session || !reminder || reminder.id !== input.reminderId || session.id !== input.sessionId)
       return fail("staleReminder", "この通知は回答済み、または失効しています。");
     this.snapshot.reminder = null;
-    const hard = session.elapsedMs >= 60 * this.unit();
-    const delay = input.answer === "yes" ? 10 : hard ? 5 : 10;
-    this.nextPromptAt = this.now + delay * this.unit();
+    const hard = session.elapsedMs >= this.timings().hardMs;
+    const delay = input.answer === "yes" ? this.timings().yesGraceMs : hard ? this.timings().hardRepeatMs : this.timings().snoozeMs;
+    this.nextPromptAt = this.now + delay;
     this.nextPromptCause = "snoozeLimit";
-    this.boundaryEligibleAt = input.answer === "no" && !hard ? this.now + 2 * this.unit() : Infinity;
+    this.boundaryEligibleAt = input.answer === "no" && !hard ? this.now + this.timings().cooldownMs : Infinity;
     this.hardNextAt = hard ? this.nextPromptAt : -Infinity;
     const reportId = input.answer === "yes" ? this.requestReport("yes") : null;
     this.emit();
@@ -131,14 +132,14 @@ export class MockGateway implements AppGateway {
       .map(segment => ({ ...segment, startedAt: Math.max(segment.startedAt, report.history.rangeStart),
         endedAt: Math.min(segment.endedAt, report.history.rangeEnd) }));
     const job = createJob(report, trigger === "away" ? "scheduled" : "running");
-    job.dueAt = this.now + (trigger === "away" ? 5 * this.unit() : 0);
+    job.dueAt = this.now + (trigger === "away" ? this.timings().reportDelayMs : 0);
     this.reports.set(report.id, report);
     this.snapshot.jobs.push(job);
     session.reportJobId = job.id;
     return job.id;
   }
 
-  /** センサーの代わりに確定状態を入力する。実機の30秒安定化は模擬しない。 */
+  /** センサーの代わりに確定状態を入力する。実機の離席待ち時間は模擬しない。 */
   setPresence(value: Presence): void {
     if (this.snapshot.runtime.phase !== "running") return;
     const previous = this.snapshot.presence.value;
@@ -183,7 +184,7 @@ export class MockGateway implements AppGateway {
     if (runtime.phase === "running" && session?.endedAt === null) {
       session.elapsedMs = this.now - session.startedAt;
       if (presence.value === "present") {
-        const hard = session.elapsedMs >= 60 * this.unit();
+        const hard = session.elapsedMs >= this.timings().hardMs;
         if (this.snapshot.reminder && hard) this.snapshot.reminder.level = "hard";
         if (!this.snapshot.reminder && ((hard && this.now >= this.hardNextAt) || this.now >= this.nextPromptAt))
           this.showReminder(hard ? "hardLimit" : this.nextPromptCause);
@@ -210,6 +211,8 @@ export class MockGateway implements AppGateway {
   async updateSettings(input: Omit<UpdateSettingsRequest, "requestId">): Promise<ApiResult<AppSnapshot>> {
     if (this.snapshot.runtime.phase !== "stopped") return fail("invalidState", "設定を変更する前に、作業の記録を停止してください。");
     if (input.expectedSettingsRevision !== this.snapshot.settings.revision) return fail("staleRevision", "設定を読み直してください。");
+    const timingError = validateTimingProfiles(input.values.timings);
+    if (timingError) return fail("validation", timingError);
     if (input.values.reportMode === "ai" && !input.values.provider) return fail("validation", "接続先とモデルを設定してください。");
     const provider = input.values.provider;
     if (provider) {

@@ -2,11 +2,12 @@
 use super::*;
 use crate::{domain as d, ports::clock::ClockReading};
 
-pub(super) fn timings(profile: TimingProfile) -> d::timings::Timings {
-    match profile {
-        TimingProfile::Normal => d::timings::Timings::NORMAL,
-        TimingProfile::Demo => d::timings::Timings::DEMO,
-    }
+pub(super) fn timings(state: &State) -> d::timings::Timings {
+    state
+        .snapshot
+        .settings
+        .timings
+        .for_profile(state.snapshot.runtime.profile)
 }
 pub(super) fn handle_events(state: &mut State, events: &[d::DomainEvent]) {
     for event in events {
@@ -77,9 +78,10 @@ pub(super) fn refresh_inputs(state: &mut State, now: ClockReading) {
     } else {
         d::PresenceReason::MissingInput
     };
+    let active_timings = timings(state);
     let engine = state
         .domain
-        .get_or_insert_with(|| d::Engine::new(timings(state.snapshot.runtime.profile)));
+        .get_or_insert_with(|| d::Engine::new(active_timings));
     match engine.tick(
         d::Time {
             utc_ms: now.utc_ms,
