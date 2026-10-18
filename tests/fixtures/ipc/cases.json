@@ -30,7 +30,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -82,7 +83,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",
@@ -341,7 +343,8 @@
             "reducedMotion": false,
             "revision": 0,
             "hasApiKey": true,
-            "ocrEnabled": false
+            "ocrEnabled": false,
+            "notificationSound": "dog"
           },
           "presence": {
             "value": "present",
@@ -442,7 +445,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -489,7 +493,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -536,7 +541,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -584,7 +590,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -632,7 +639,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -680,7 +688,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -728,7 +737,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -765,7 +775,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -812,7 +823,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -860,7 +872,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": "false",
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -907,7 +920,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -959,7 +973,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",
@@ -1036,7 +1051,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",
@@ -1109,7 +1125,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -1166,7 +1183,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": false,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "unknown",
@@ -1367,7 +1385,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",
@@ -1440,7 +1459,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",
@@ -1509,7 +1529,8 @@
           "reducedMotion": false,
           "revision": 0,
           "hasApiKey": true,
-          "ocrEnabled": false
+          "ocrEnabled": false,
+          "notificationSound": "dog"
         },
         "presence": {
           "value": "present",

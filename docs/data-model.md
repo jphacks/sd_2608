@@ -171,6 +171,7 @@ export type SettingsInput = {
   excludedApps: string[];
   reducedMotion: boolean;
   ocrEnabled: boolean; // 初期値 false、OCR の設定はこれだけ
+  notificationSound: "dog" | "system" | "none"; // 初期値 dog、旧保存設定の欠落も dog
 };
 export type SettingsView = SettingsInput & {
   revision: number;

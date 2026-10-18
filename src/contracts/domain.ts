@@ -131,12 +131,14 @@ export type ProviderSettings = {
   endpoint: string;
   model: string;
 };
+export type NotificationSound = "dog" | "system" | "none";
 export type SettingsInput = {
   reportMode: "local" | "ai";
   provider: ProviderSettings | null;
   excludedApps: string[];
   reducedMotion: boolean;
   ocrEnabled: boolean;
+  notificationSound: NotificationSound;
 };
 export type SettingsView = SettingsInput & {
   revision: number;

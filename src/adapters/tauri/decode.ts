@@ -50,7 +50,7 @@ const errorDecoder: Decoder<ApiError> = object({
 const consent = object({ activity: boolean, history: boolean, externalReport: boolean });
 const provider = object({ kind: oneOf("gemini", "openAiCompatible"), endpoint: string, model: string });
 const settings = object({ reportMode: oneOf("local", "ai"), provider: nullable(provider), excludedApps: array(string),
-  reducedMotion: boolean, ocrEnabled: boolean, revision: integer, hasApiKey: boolean });
+  reducedMotion: boolean, ocrEnabled: boolean, notificationSound: oneOf("dog", "system", "none"), revision: integer, hasApiKey: boolean });
 const runtime = object({ phase: oneOf("stopped", "starting", "running", "stopping", "error"), trackingId: nullable(id),
   profile: oneOf("normal", "demo"), effectiveReportMode: oneOf("local", "ai"), camera: oneOf("off", "waiting", "running", "error"),
   activity: oneOf("off", "running", "error"), consent });
