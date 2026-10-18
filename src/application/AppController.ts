@@ -2,6 +2,7 @@ import type { AppGateway } from "../ports/AppGateway.js";
 import { GatewayConnectionError } from "../ports/AppGateway.js";
 import type { ApiError, ApiResult, AppSnapshot, Id } from "../contracts/domain.js";
 import type { AppViewActions, AppViewModel, UiOperation } from "../contracts/ui.js";
+import type { ReportListItem } from "../contracts/api.js";
 import { finishMotion, initialMotion, moveTo } from "../pochi/animation.js";
 
 const connectionError = (): ApiError => ({ code: "internal", message: "接続または取得に失敗しました。再接続してください。", retryable: true });
@@ -102,9 +103,12 @@ export class AppController {
     const reminder = snapshot.reminder;
     const notice = snapshot.advanceNotice;
     const noticeKey = this.advanceNoticeKey(snapshot);
-    const showNotice = notice && noticeKey !== this.dismissedAdvanceNotice
+    const previousNotice = previous?.runtimeId === snapshot.runtimeId
+      && previous?.runtime.trackingId === snapshot.runtime.trackingId ? this.state.advanceNotice : null;
+    const noticeSessionId = notice?.sessionId ?? previousNotice?.sessionId;
+    const showNotice = noticeSessionId && noticeKey !== this.dismissedAdvanceNotice
       && snapshot.runtime.phase === "running" && snapshot.presence.value === "present"
-      && snapshot.session?.endedAt === null && snapshot.session.id === notice.sessionId && !reminder;
+      && snapshot.session?.endedAt === null && snapshot.session.id === noticeSessionId && !reminder;
     const noticeUnit = snapshot.runtime.profile === "demo" ? 1_000 : 60_000;
     const currentReportId = this.currentReportId();
     const completions = snapshot.jobs.filter(job => job.completionSeq !== null && job.completionSeq > this.seenCompletion)
@@ -119,21 +123,22 @@ export class AppController {
     this.publish({
       snapshot,
       motion,
-      advanceNotice: showNotice ? { sessionId: notice.sessionId,
-        text: `あと${Math.ceil(notice.remainingMs / noticeUnit)}${snapshot.runtime.profile === "demo" ? "秒" : "分"}ほどで休憩の目安だよ。区切りのよいところで、ひと息つく準備をしよう。` } : null,
+      advanceNotice: showNotice ? { sessionId: noticeSessionId,
+        text: notice ? `あと${Math.ceil(notice.remainingMs / noticeUnit)}${snapshot.runtime.profile === "demo" ? "秒" : "分"}ほどで休憩の目安だよ。区切りのよいところで、ひと息つく準備をしよう。`
+          : "そろそろ休憩の時間だよ。区切りのよいところで、ひと息つこう。" } : null,
       pet: {
         pose: resting ? "lie" : "sit",
         animation: reminder ? "recordReminder" : returned ? "welcome" : !previous && snapshot.runtime.phase === "stopped" ? "launch" : resting ? "idleRest" : null,
         playbackToken: reminder?.id ?? (returned ? `return-${snapshot.session?.id}` : `${snapshot.runtimeId}-${resting ? "rest" : "sit"}`),
         greeting: returned ? "おかえりなさい！" : null,
-        statusText: snapshot.runtime.phase === "stopped" ? "監視は停止中です" :
-          snapshot.presence.value === "present" ? "在席を計測中" :
-          snapshot.presence.value === "away" ? "ゆっくり休憩してね" : "在席を確認できません",
+        statusText: snapshot.runtime.phase === "stopped" ? "記録はお休み中" :
+          snapshot.presence.value === "present" ? "作業を記録中" :
+          snapshot.presence.value === "away" ? "ゆっくり休憩してね" : "席にいるか確認できません",
       },
       bubble: reminder ? {
         reminderId: reminder.id, emphasis: reminder.level,
         text: reminder.level === "hard" ? "長く座り続けているかも。少し立って休憩しない？" : "しばらく座りっぱなしかも。少し立って休憩しない？",
-        yesLabel: "はい・レポートを作る", noLabel: "いいえ・今は続ける", disabled: this.state.pending !== null,
+        yesLabel: "レポートを作る", noLabel: "今は続ける", disabled: this.state.pending !== null,
       } : null,
     });
     for (const job of completions) {
@@ -149,7 +154,7 @@ export class AppController {
     return report.phase === "closed" ? null : report.phase === "ready" ? report.report.id : report.reportId;
   }
   private advanceNoticeKey(snapshot: AppSnapshot): string {
-    return JSON.stringify([snapshot.runtimeId, snapshot.runtime.trackingId, snapshot.advanceNotice?.sessionId]);
+    return JSON.stringify([snapshot.runtimeId, snapshot.runtime.trackingId, snapshot.session?.id]);
   }
   private pumpReportQueue(): void {
     if (this.state.report.phase !== "closed") return;
@@ -177,15 +182,30 @@ export class AppController {
       if (epoch === this.epoch && mutation === this.mutation) this.publish({ pending: null, bubble: this.state.bubble ? { ...this.state.bubble, disabled: false } : null });
     }
   }
-  private async refreshReports(): Promise<void> {
+  private async refreshReports(): Promise<boolean> {
     const epoch = this.epoch; const read = ++this.listRead;
     this.publish({ reportListLoading: true });
     try {
-      const result = await this.gateway.listReports({ cursor: null, limit: 20 });
-      if (epoch !== this.epoch || read !== this.listRead) return;
-      if (result.ok) this.publish({ reportList: result.data.items });
-      else this.publish({ error: result.error });
-    } catch { if (epoch === this.epoch && read === this.listRead) this.publish({ error: connectionError() }); }
+      const items: ReportListItem[] = [];
+      let cursor: string | null = null;
+      const cursors = new Set<string>();
+      do {
+        const result = await this.gateway.listReports({ cursor, limit: 20 });
+        if (epoch !== this.epoch || read !== this.listRead) return false;
+        if (!result.ok) { this.publish({ error: result.error }); return false; }
+        items.push(...result.data.items);
+        cursor = result.data.nextCursor;
+        if (cursor !== null) {
+          if (cursors.has(cursor)) throw new Error("Repeated report cursor");
+          cursors.add(cursor);
+        }
+      } while (cursor !== null);
+      this.publish({ reportList: items });
+      return true;
+    } catch {
+      if (epoch === this.epoch && read === this.listRead) this.publish({ error: connectionError() });
+      return false;
+    }
     finally { if (epoch === this.epoch && read === this.listRead) this.publish({ reportListLoading: false }); }
   }
   private async openReport(reportId: Id): Promise<void> {
@@ -242,7 +262,11 @@ export class AppController {
     },
     saveSettings: async input => { await this.mutate("settings", () => this.gateway.updateSettings(input), value => value); },
     openReport: id => this.openReport(id),
-    openLatestReport: async () => { await this.refreshReports(); const latest = this.state.reportList[0]; if (latest) await this.openReport(latest.id); },
+    openLatestReport: async () => {
+      if (!await this.refreshReports()) return;
+      const latest = this.state.reportList[0];
+      if (latest) await this.openReport(latest.id);
+    },
     closeReport: () => {
       this.reportRead++;
       const snapshot = this.state.snapshot;
@@ -258,7 +282,7 @@ export class AppController {
         if (!finished) this.publish({ report: { phase: "loading", reportId: panel.report.id } });
       }
     },
-    refreshReports: () => this.refreshReports(),
+    refreshReports: async () => { await this.refreshReports(); },
     clearData: async () => {
       if (this.state.pending || this.state.connection !== "connected") return;
       // 削除要求より前の非同期読込が、削除後に UI を復活させない。

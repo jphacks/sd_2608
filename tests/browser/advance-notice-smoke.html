@@ -15,7 +15,7 @@ const root = createRoot(document.querySelector("#app"));
 const output = document.querySelector("#result"), checks = [];
 const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 const check = (condition, label) => { if (!condition) throw Error(label); checks.push(label); };
-const preview = () => document.querySelector('[aria-label="休憩の予告"]');
+const preview = () => document.querySelector('.bub:not([aria-hidden="true"]) [aria-label="休憩の予告"]');
 const render = () => {
   const state = controller.getState();
   // 本番の手動顔入力では情報用 warning が付く。その表示と予告を両立させる。
@@ -34,13 +34,18 @@ try {
   check(!preview(), "26秒では予告しない");
   gateway.advanceBy(1_000); await paint();
   check(preview()?.textContent.includes("あと3秒"), "27秒であと3秒の予告（手動顔入力の案内と共存）");
-  check(preview().querySelectorAll("button").length === 1 && preview().querySelector("button").textContent === "閉じる",
-    "予告は閉じるボタンだけで Yes / No は表示しない");
+  check(preview().querySelectorAll("button").length === 0 && document.querySelector('[aria-label="休憩の予告を閉じる"]'),
+    "予告は上部の✕で閉じ、Yes / No は表示しない");
+  document.querySelector(".chip").click(); await paint();
   document.querySelector(".gear").click(); await paint();
   check(!preview() && document.querySelector(".settings-panel"), "設定パネルを優先し、予告で操作を遮らない");
-  [...document.querySelectorAll(".bub button")].find(button => button.textContent === "もどる").click(); await paint();
+  document.querySelector(".bubble-back").click(); await paint();
+  check(document.querySelector(".menu-grid") && !preview(), "設定左上の戻るボタンはメニューへ戻る");
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await paint();
   check(!!preview(), "予告期間内ならパネルを閉じた後に表示");
-  preview().querySelector("button").click(); await paint();
+  gateway.advanceBy(3_000); await paint();
+  check(preview()?.textContent.includes("そろそろ休憩の時間"), "目安の時刻を過ぎても休憩予告を自動で消さない");
+  document.querySelector('[aria-label="休憩の予告を閉じる"]').click(); await paint();
   gateway.advanceBy(1_000); await paint();
   check(!preview() && !controller.getState().bubble && !gateway.getSnapshot().jobs.length,
     "閉じた予告は次の更新で再表示せず、回答・レポートを発生させない");

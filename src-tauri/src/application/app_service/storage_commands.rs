@@ -97,7 +97,7 @@ impl AppService {
                     if state.snapshot.runtime.phase != RuntimePhase::Stopped {
                         return Err(ApiError::new(
                             ErrorCode::InvalidState,
-                            "設定変更前に監視を停止してください。",
+                            "設定を変更する前に、作業の記録を停止してください。",
                         ));
                     }
                     if request.expected_settings_revision != state.snapshot.settings.revision {
@@ -169,7 +169,7 @@ impl AppService {
                     if state.generation != generation {
                         return Err(ApiError::new(
                             ErrorCode::StaleTracking,
-                            "監視が更新されています。",
+                            "記録の状態が変わりました。もう一度操作してください。",
                         ));
                     }
                     let report = result?;
@@ -279,7 +279,7 @@ fn retry_allowed(state: &State) -> Result<(), ApiError> {
     if state.snapshot.runtime.phase != RuntimePhase::Running {
         return Err(ApiError::new(
             ErrorCode::InvalidState,
-            "監視を開始してから再試行してください。",
+            "作業の記録を開始してから、もう一度お試しください。",
         ));
     }
     if !state.snapshot.runtime.consent.activity || !state.snapshot.runtime.consent.history {

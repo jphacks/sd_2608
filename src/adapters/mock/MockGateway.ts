@@ -67,7 +67,7 @@ export class MockGateway implements AppGateway {
   }
 
   async start(input: Omit<StartRuntimeRequest, "requestId">): Promise<ApiResult<AppSnapshot>> {
-    if (this.snapshot.runtime.phase !== "stopped") return fail("invalidState", "先に監視を停止してください。");
+    if (this.snapshot.runtime.phase !== "stopped") return fail("invalidState", "先に作業の記録を停止してください。");
     if (input.expectedSettingsRevision !== this.snapshot.settings.revision) return fail("staleRevision", "設定を読み直してください。");
     if (!input.consent.activity || !input.consent.history || (input.reportMode === "ai" && !input.consent.externalReport))
       return fail("consentRequired", "開始する機能の説明を確認してください。");
@@ -84,7 +84,7 @@ export class MockGateway implements AppGateway {
     return ok(this.snapshot);
   }
   async stop(trackingId: Id): Promise<ApiResult<AppSnapshot>> {
-    if (trackingId !== this.snapshot.runtime.trackingId) return fail("staleTracking", "古い監視への停止要求です。");
+    if (trackingId !== this.snapshot.runtime.trackingId) return fail("staleTracking", "記録の状態が変わりました。もう一度操作してください。");
     this.stopRuntime();
     this.emit();
     return ok(this.snapshot);
@@ -102,7 +102,7 @@ export class MockGateway implements AppGateway {
 
   async respond(input: Omit<RespondReminderRequest, "requestId">): Promise<ApiResult<RespondReminderResult>> {
     const { session, reminder, runtime } = this.snapshot;
-    if (input.trackingId !== runtime.trackingId) return fail("staleTracking", "監視が更新されています。");
+    if (input.trackingId !== runtime.trackingId) return fail("staleTracking", "記録の状態が変わりました。もう一度操作してください。");
     if (!session || !reminder || reminder.id !== input.reminderId || session.id !== input.sessionId)
       return fail("staleReminder", "この通知は回答済み、または失効しています。");
     this.snapshot.reminder = null;
@@ -208,7 +208,7 @@ export class MockGateway implements AppGateway {
   }
 
   async updateSettings(input: Omit<UpdateSettingsRequest, "requestId">): Promise<ApiResult<AppSnapshot>> {
-    if (this.snapshot.runtime.phase !== "stopped") return fail("invalidState", "設定変更前に監視を停止してください。");
+    if (this.snapshot.runtime.phase !== "stopped") return fail("invalidState", "設定を変更する前に、作業の記録を停止してください。");
     if (input.expectedSettingsRevision !== this.snapshot.settings.revision) return fail("staleRevision", "設定を読み直してください。");
     if (input.values.reportMode === "ai" && !input.values.provider) return fail("validation", "接続先とモデルを設定してください。");
     const provider = input.values.provider;
@@ -246,7 +246,7 @@ export class MockGateway implements AppGateway {
   async retryReport(input: Omit<RetryReportRequest, "requestId">): Promise<ApiResult<AppSnapshot>> {
     const job = this.snapshot.jobs.find(candidate => candidate.id === input.reportId);
     if (!job || job.status !== "failed" || job.attempt !== input.expectedAttempt) return fail("invalidState", "このレポートは再試行できません。");
-    if (this.snapshot.runtime.phase !== "running") return fail("invalidState", "監視を開始してから再試行してください。");
+    if (this.snapshot.runtime.phase !== "running") return fail("invalidState", "作業の記録を開始してから、もう一度お試しください。");
     job.status = "running"; job.attempt++; job.dueAt = this.now;
     this.emit();
     return ok(this.snapshot);

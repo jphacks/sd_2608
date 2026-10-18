@@ -369,28 +369,39 @@ impl AppService {
             Ok(state) => state,
             Err(_) => return reject(internal()),
         };
-        let result =
-            match command {
-                Command::AppGetSnapshot => {
-                    if request.is_some() {
-                        Err(ApiError::validation())
-                    } else {
-                        if state.snapshot.runtime.phase != RuntimePhase::Running {
-                            return DispatchOutcome {
-                                result: response(&state.snapshot),
-                                changed: None,
-                            };
-                        }
-                        let now = self.clock.read();
-                        let Ok(timestamp) = SafeInt::try_from(now.utc_ms) else {
-                            return reject(internal());
+        let result = match command {
+            Command::AppGetSnapshot => {
+                if request.is_some() {
+                    Err(ApiError::validation())
+                } else {
+                    if state.snapshot.runtime.phase != RuntimePhase::Running {
+                        return DispatchOutcome {
+                            result: response(&state.snapshot),
+                            changed: None,
                         };
-                        let Ok(revision) =
-                            SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
-                        else {
-                            return reject(internal());
-                        };
-                        let previous = (
+                    }
+                    let now = self.clock.read();
+                    let Ok(timestamp) = SafeInt::try_from(now.utc_ms) else {
+                        return reject(internal());
+                    };
+                    let Ok(revision) =
+                        SafeInt::try_from(state.snapshot.revision.get().saturating_add(1))
+                    else {
+                        return reject(internal());
+                    };
+                    let previous = (
+                        state.snapshot.runtime.camera,
+                        state.snapshot.presence.clone(),
+                        state.snapshot.warning.clone(),
+                        state.snapshot.session.clone(),
+                        state.snapshot.reminder.clone(),
+                        state.snapshot.runtime.activity,
+                    );
+                    if state.snapshot.runtime.phase == RuntimePhase::Running {
+                        refresh_inputs(&mut state, now);
+                    }
+                    let changed = previous
+                        != (
                             state.snapshot.runtime.camera,
                             state.snapshot.presence.clone(),
                             state.snapshot.warning.clone(),
@@ -398,108 +409,95 @@ impl AppService {
                             state.snapshot.reminder.clone(),
                             state.snapshot.runtime.activity,
                         );
-                        if state.snapshot.runtime.phase == RuntimePhase::Running {
-                            refresh_inputs(&mut state, now);
-                        }
-                        let changed = previous
-                            != (
-                                state.snapshot.runtime.camera,
-                                state.snapshot.presence.clone(),
-                                state.snapshot.warning.clone(),
-                                state.snapshot.session.clone(),
-                                state.snapshot.reminder.clone(),
-                                state.snapshot.runtime.activity,
-                            );
-                        if changed {
-                            state.snapshot.revision = revision;
-                            state.snapshot.emitted_at = timestamp;
-                        }
-                        return DispatchOutcome {
-                            result: response(&state.snapshot),
-                            changed: changed.then(|| state.snapshot.clone()),
-                        };
+                    if changed {
+                        state.snapshot.revision = revision;
+                        state.snapshot.emitted_at = timestamp;
                     }
+                    return DispatchOutcome {
+                        result: response(&state.snapshot),
+                        changed: changed.then(|| state.snapshot.clone()),
+                    };
                 }
-                Command::RuntimeStart => match parse::<StartRuntimeRequest>(request) {
-                    Ok(request) => {
-                        return self.mutate(
-                            &mut state,
-                            command,
-                            request.request_id.clone(),
-                            json!(request),
-                            |state| {
-                                if request.expected_settings_revision
-                                    != state.snapshot.settings.revision
-                                {
-                                    return failure(
-                                        ErrorCode::StaleRevision,
-                                        "設定を読み直してください。",
-                                    );
-                                }
-                                if !request.consent.activity
-                                    || !request.consent.history
-                                    || (request.report_mode == ReportMode::Ai
-                                        && !request.consent.external_report)
-                                {
-                                    return failure(
-                                        ErrorCode::ConsentRequired,
-                                        "開始する機能の説明を確認してください。",
-                                    );
-                                }
-                                match self.start(state, &request) {
-                                    Ok(()) => response(&state.snapshot),
-                                    Err(error) => ApiResult::Failure(error),
-                                }
-                            },
-                        );
-                    }
-                    Err(error) => Err(error),
-                },
-                Command::FaceSubmit => match parse::<FaceInput>(request) {
-                    Ok(input) => return self.submit_face(&mut state, input),
-                    Err(error) => Err(error),
-                },
-                Command::ReminderRespond => match parse::<RespondReminderRequest>(request) {
-                    Ok(request) => {
-                        return self.mutate(
-                            &mut state,
-                            command,
-                            request.request_id.clone(),
-                            json!(request),
-                            |state| self.respond(state, &request),
-                        );
-                    }
-                    Err(error) => Err(error),
-                },
-                Command::RuntimeStop => match parse::<StopRuntimeRequest>(request) {
-                    Ok(request) => return self.mutate(
+            }
+            Command::RuntimeStart => match parse::<StartRuntimeRequest>(request) {
+                Ok(request) => {
+                    return self.mutate(
                         &mut state,
                         command,
                         request.request_id.clone(),
                         json!(request),
                         |state| {
-                            if state.snapshot.runtime.tracking_id.as_ref()
-                                != Some(&request.tracking_id)
+                            if request.expected_settings_revision
+                                != state.snapshot.settings.revision
                             {
                                 return failure(
-                                    ErrorCode::StaleTracking,
-                                    "この監視は停止済み、または新しい監視に切り替わっています。",
+                                    ErrorCode::StaleRevision,
+                                    "設定を読み直してください。",
                                 );
                             }
-                            match self.reset(state, false) {
+                            if !request.consent.activity
+                                || !request.consent.history
+                                || (request.report_mode == ReportMode::Ai
+                                    && !request.consent.external_report)
+                            {
+                                return failure(
+                                    ErrorCode::ConsentRequired,
+                                    "開始する機能の説明を確認してください。",
+                                );
+                            }
+                            match self.start(state, &request) {
                                 Ok(()) => response(&state.snapshot),
                                 Err(error) => ApiResult::Failure(error),
                             }
                         },
-                    ),
-                    Err(error) => Err(error),
-                },
-                Command::ReportList
-                | Command::ReportGet
-                | Command::SettingsUpdate
-                | Command::DataClear
-                | Command::ReportRetry => unreachable!("storage dispatcher"),
-            };
+                    );
+                }
+                Err(error) => Err(error),
+            },
+            Command::FaceSubmit => match parse::<FaceInput>(request) {
+                Ok(input) => return self.submit_face(&mut state, input),
+                Err(error) => Err(error),
+            },
+            Command::ReminderRespond => match parse::<RespondReminderRequest>(request) {
+                Ok(request) => {
+                    return self.mutate(
+                        &mut state,
+                        command,
+                        request.request_id.clone(),
+                        json!(request),
+                        |state| self.respond(state, &request),
+                    );
+                }
+                Err(error) => Err(error),
+            },
+            Command::RuntimeStop => match parse::<StopRuntimeRequest>(request) {
+                Ok(request) => return self.mutate(
+                    &mut state,
+                    command,
+                    request.request_id.clone(),
+                    json!(request),
+                    |state| {
+                        if state.snapshot.runtime.tracking_id.as_ref() != Some(&request.tracking_id)
+                        {
+                            return failure(
+                                ErrorCode::StaleTracking,
+                                "この作業の記録は停止されたか、新しい記録に切り替わっています。",
+                            );
+                        }
+                        match self.reset(state, false) {
+                            Ok(()) => response(&state.snapshot),
+                            Err(error) => ApiResult::Failure(error),
+                        }
+                    },
+                ),
+                Err(error) => Err(error),
+            },
+            Command::ReportList
+            | Command::ReportGet
+            | Command::SettingsUpdate
+            | Command::DataClear
+            | Command::ReportRetry => unreachable!("storage dispatcher"),
+        };
         DispatchOutcome {
             result: result.unwrap_or_else(ApiResult::Failure),
             changed: None,
@@ -690,7 +688,7 @@ impl AppService {
             {
                 return Err(ApiError::new(
                     ErrorCode::StaleTracking,
-                    "有効な監視の顔入力ではありません。",
+                    "現在の記録に対応する在席情報ではありません。",
                 ));
             }
             let now = self.clock.read();
@@ -739,7 +737,7 @@ impl AppService {
             if state.snapshot.runtime.tracking_id.as_ref() != Some(&request.tracking_id) {
                 return Err(ApiError::new(
                     ErrorCode::StaleTracking,
-                    "監視が更新されています。",
+                    "記録の状態が変わりました。もう一度操作してください。",
                 ));
             }
             let now = self.clock.read();

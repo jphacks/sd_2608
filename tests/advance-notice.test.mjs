@@ -13,7 +13,7 @@ async function setup(profile = "normal") {
   return { gateway, controller };
 }
 
-test("通常27分・デモ27秒で予告し、30分・30秒で消えて既存の提案へ進む", async () => {
+test("通常27分・デモ27秒で予告し、目安の時刻を過ぎても次の休憩提案まで残す", async () => {
   for (const [profile, unit, label] of [["normal", MINUTE, "分"], ["demo", 1000, "秒"]]) {
     const { gateway, controller } = await setup(profile);
     try {
@@ -27,13 +27,27 @@ test("通常27分・デモ27秒で予告し、30分・30秒で消えて既存の
       gateway.advanceBy(unit);
       assert.match(controller.getState().advanceNotice.text, new RegExp(`あと2${label}`));
       gateway.advanceBy(2 * unit);
-      assert.equal(controller.getState().advanceNotice, null);
+      assert.match(controller.getState().advanceNotice.text, /そろそろ休憩の時間/);
       assert.equal(controller.getState().bubble, null);
       gateway.detectBoundary();
       assert.ok(controller.getState().bubble);
+      assert.equal(controller.getState().advanceNotice, null);
       assert.equal(gateway.getSnapshot().jobs.length, 0);
     } finally { await controller.dispose(); }
   }
+});
+
+test("目安の時刻を過ぎた休憩予告も手動で閉じられ、再表示やレポート作成をしない", async () => {
+  const { gateway, controller } = await setup("demo");
+  try {
+    gateway.advanceBy(27_000); gateway.advanceBy(3_000); gateway.advanceBy(2_000);
+    assert.match(controller.getState().advanceNotice.text, /そろそろ休憩の時間/);
+    const before = gateway.getSnapshot();
+    controller.actions.dismissAdvanceNotice(); gateway.advanceBy(1_000);
+    assert.equal(controller.getState().advanceNotice, null);
+    assert.equal(controller.getState().snapshot.session.id, before.session.id);
+    assert.equal(gateway.getSnapshot().jobs.length, 0);
+  } finally { await controller.dispose(); }
 });
 
 test("閉じる操作は通信・在席・提案時刻・レポートを変更せず、同じサイクルで再表示しない", async () => {
