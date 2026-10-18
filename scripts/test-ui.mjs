@@ -54,7 +54,7 @@ try {
   for (const page of ["pet-ui-smoke", "advance-notice-smoke", "window-click-through-smoke"]) {
     await call("Page.navigate", { url: `${origin}/tests/browser/${page}.html` });
     let output;
-    for (let attempt = 0; attempt < 200; attempt++) {
+    for (let attempt = 0; attempt < 400; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 100));
       const result = await call("Runtime.evaluate", { expression: 'document.querySelector("#result")?.textContent', returnByValue: true });
       output = result.result?.value;

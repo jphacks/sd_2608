@@ -18,7 +18,8 @@ const until = async predicate => {
   }
 };
 try {
-  await until(() => frame.contentDocument?.querySelector(".dog[data-hit-src]") && frame.contentDocument.querySelector(".bs button:not(:disabled)"));
+  await until(() => frame.contentDocument?.querySelector('.pochi-app')?.dataset.entrance === 'done'
+    && frame.contentDocument.querySelector(".dog[data-hit-src]") && frame.contentDocument.querySelector(".bs button:not(:disabled)"));
   const doc = frame.contentDocument;
   const hit = createPochiHitTest(doc);
   const center = element => { const r = element.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };

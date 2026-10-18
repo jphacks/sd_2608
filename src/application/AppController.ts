@@ -27,6 +27,7 @@ export class AppController {
   private closing = false;
   private mutation = 0;
   private dismissedAdvanceNotice: string | null = null;
+  private settingsOpen = false;
 
   constructor(private readonly gateway: AppGateway) {}
   getState = (): AppViewModel => this.state;
@@ -99,7 +100,7 @@ export class AppController {
     else if (snapshot.presence.value === "away") this.awaitingReturn = true;
     else if (snapshot.presence.value === "present") this.awaitingReturn = false;
     const resting = (snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present")
-      && this.state.report.phase === "closed";
+      && this.state.report.phase === "closed" && !this.settingsOpen;
     const reminder = snapshot.reminder;
     const notice = snapshot.advanceNotice;
     const noticeKey = this.advanceNoticeKey(snapshot);
@@ -223,6 +224,14 @@ export class AppController {
   }
   readonly actions: AppViewActions = {
     completeAnimation: token => { this.publish({ motion: finishMotion(this.state.motion, token) }); },
+    setSettingsOpen: open => {
+      if (this.settingsOpen === open) return;
+      this.settingsOpen = open;
+      const snapshot = this.state.snapshot;
+      const resting = !open && this.state.report.phase === "closed"
+        && (!snapshot || snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present");
+      this.publish({ motion: moveTo(this.state.motion, resting ? "rest" : "idle") });
+    },
     turn: () => { this.publish({ motion: moveTo(this.state.motion, "idle", "turn_sit") }); },
     reconnect: () => this.connect(),
     moveWindow: () => this.windowOperation(() => this.gateway.window?.drag()),
@@ -270,7 +279,7 @@ export class AppController {
     closeReport: () => {
       this.reportRead++;
       const snapshot = this.state.snapshot;
-      const resting = !snapshot || snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present";
+      const resting = !this.settingsOpen && (!snapshot || snapshot.runtime.phase === "stopped" || snapshot.presence.value !== "present");
       this.publish({ report: { phase: "closed" }, motion: moveTo(this.state.motion, resting ? "rest" : "idle") });
       this.pumpReportQueue();
     },
@@ -289,7 +298,7 @@ export class AppController {
       this.reportRead++; this.listRead++; this.reportQueue = [];
       if (await this.mutate("clear", () => this.gateway.clearData(), value => value))
         this.publish({ report: { phase: "closed" }, reportList: [], reportListLoading: false, queuedReportCount: 0,
-          motion: moveTo(this.state.motion, "rest") });
+          motion: moveTo(this.state.motion, this.settingsOpen ? "idle" : "rest") });
     },
     dismissError: () => { this.publish({ error: null }); },
     dismissAdvanceNotice: () => {

@@ -20,6 +20,14 @@ html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] 
 .pochi-app #petbtn { display:block; border:0; background:transparent; padding:0; width:170px; height:170px; min-height:0; border-radius:50%; touch-action:none; user-select:none; cursor:grab; }
 .pochi-app #petbtn:active { cursor:grabbing; }
 .pochi-app .dog { width:170px; height:170px; object-fit:contain; display:block; pointer-events:none; background-repeat:no-repeat; }
+.pochi-app #petbtn { position:relative; overflow:visible; }
+.pochi-app #petbtn:disabled { opacity:1; cursor:progress; }
+.pochi-app[data-entrance=playing] #petbtn { pointer-events:none; }
+.pochi-app .resident-dog { display:block; opacity:0; pointer-events:none; transition:opacity .2s linear; }
+.pochi-app .resident-dog.visible { opacity:1; }
+.pochi-app .arrival-layer { position:absolute; inset:0; pointer-events:none; opacity:1; transition:opacity .2s linear; }
+.pochi-app .arrival-layer.leaving { opacity:0; }
+.pochi-app .arrival-dog { position:absolute; max-width:none; display:block; pointer-events:none; }
 .pochi-app .zz { position:absolute; right:14px; top:30px; font-weight:700; color:var(--ear); opacity:0; font-size:18px; letter-spacing:2px; pointer-events:none; }
 .pochi-app .dwrap.lying .zz { opacity:1; animation:pochi-zz 2.4s ease-in-out infinite; }
 @keyframes pochi-zz { 50% { transform:translateY(-8px); } }

@@ -1,0 +1,71 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { fromBuild } from "./helpers.mjs";
+const { MockGateway } = await fromBuild("adapters/mock/MockGateway.js");
+const { AppController } = await fromBuild("application/AppController.js");
+
+test("設定を開くと伏せから起き上がり、毎秒の更新後も座ったまま設定を続ける", async () => {
+  const gateway = new MockGateway(), controller = new AppController(gateway);
+  await controller.connect();
+  controller.actions.completeAnimation(controller.getState().motion.token);
+  assert.equal(controller.getState().motion.id, "rest");
+  const snapshot = controller.getState().snapshot;
+  controller.actions.setSettingsOpen(true);
+  const rise = controller.getState().motion;
+  assert.equal(rise.id, "rest_to_sit"); assert.equal(rise.after, "idle");
+  assert.equal(controller.getState().snapshot, snapshot);
+  gateway.advanceBy(1000); assert.equal(controller.getState().motion, rise);
+  controller.actions.completeAnimation(rise.token);
+  const seated = controller.getState().motion;
+  assert.equal(seated.id, "idle");
+  for (let i = 0; i < 4; i++) gateway.advanceBy(1000);
+  assert.equal(controller.getState().motion, seated);
+  assert.equal(controller.getState().snapshot.runtime.phase, "stopped");
+  assert.equal(controller.getState().snapshot.jobs.length, 0);
+  controller.actions.setSettingsOpen(false);
+  assert.equal(controller.getState().motion.id, "sit_to_rest");
+  controller.actions.completeAnimation(controller.getState().motion.token);
+  assert.equal(controller.getState().motion.id, "rest");
+  await controller.dispose();
+});
+
+test("設定の連打・起き上がり途中の閉じる／開き直しは遷移を再生し直さない", async () => {
+  const controller = new AppController(new MockGateway()); await controller.connect();
+  controller.actions.completeAnimation(controller.getState().motion.token);
+  controller.actions.setSettingsOpen(true);
+  const rise = controller.getState().motion;
+  controller.actions.setSettingsOpen(true); assert.equal(controller.getState().motion, rise);
+  controller.actions.setSettingsOpen(false);
+  assert.equal(controller.getState().motion.token, rise.token);
+  assert.deepEqual(controller.getState().motion.queue, ["sit_to_rest"]);
+  controller.actions.setSettingsOpen(true);
+  assert.equal(controller.getState().motion.token, rise.token);
+  assert.deepEqual(controller.getState().motion.queue, []);
+  controller.actions.completeAnimation(rise.token);
+  const seated = controller.getState().motion;
+  controller.actions.completeAnimation(rise.token);
+  assert.deepEqual(controller.getState().motion, seated);
+  controller.actions.setSettingsOpen(false);
+  const down = controller.getState().motion;
+  controller.actions.setSettingsOpen(false); assert.equal(controller.getState().motion, down);
+  controller.actions.completeAnimation(down.token);
+  assert.equal(controller.getState().motion.id, "rest");
+  await controller.dispose();
+});
+
+test("設定中も業務の在席・計時を維持し、座っている犬には起き上がりを重ねない", async () => {
+  const gateway = new MockGateway(); gateway.loadScenario("working");
+  const controller = new AppController(gateway); await controller.connect();
+  assert.equal(controller.getState().motion.id, "idle");
+  controller.actions.setSettingsOpen(true);
+  assert.equal(controller.getState().motion.id, "idle");
+  const before = controller.getState().snapshot.session.elapsedMs;
+  gateway.advanceBy(1000);
+  assert.equal(controller.getState().snapshot.session.elapsedMs, before + 1000);
+  gateway.setPresence("away");
+  assert.equal(controller.getState().motion.id, "idle");
+  assert.equal(controller.getState().snapshot.presence.value, "away");
+  controller.actions.setSettingsOpen(false);
+  assert.equal(controller.getState().motion.id, "sit_to_rest");
+  await controller.dispose();
+});
