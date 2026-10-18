@@ -55,7 +55,7 @@ try {
   const rerenders = setInterval(render, 100);
   for (const id of ["welcome", "reminder", "record", "turn_sit", "sit_to_rest", "rest", "rest_to_sit", "idle"]) {
     await show(id);
-    if (animationSpec(id).loop) await new Promise(resolve => setTimeout(resolve, 800));
+    if (animationSpec(id).loop) await new Promise(resolve => setTimeout(resolve, animationSpec(id).durations.reduce((a,b)=>a+b,0)*2));
     else await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(Error(`${id}: completion timeout`)), 12_000);
       finish = () => { clearTimeout(timer); finish = null; resolve(); };
