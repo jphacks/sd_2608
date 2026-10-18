@@ -128,6 +128,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
           {appOperations}
         </> : !running && !reportOpen && !state.bubble && <>
           {panel === "start" && snapshot ? <section aria-label="監視の開始"><h3>今日は何から始める？</h3>
+            {settings?.ocrEnabled && <p className="sm">OCR はオンです。AI 要約の作成時に全ウィンドウの文字を取得し、作業履歴と照合した文字を履歴と一緒に送信・カードに保存します。画像は保存・送信しません。ローカル履歴での開始では OCR を行いません。</p>}
             <label className="check"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} />{manual ? "手動の顔入力" : "カメラの顔の有無"}・PC 情報で在席を計測し、マスク済みの作業履歴を記録する</label>
             {usesAi ? <label className="check"><input type="checkbox" checked={externalConsent} onChange={event => setExternalConsent(event.target.checked)} />Yes の直後と離席確定の{profile === "demo" ? "5秒" : "5分"}後に、マスク済み履歴を {settings?.provider?.endpoint}（{settings?.provider?.model}）へ送信する</label> : <p className="sm">端末内で履歴カードを作成します。</p>}
             <div className="bs"><button className="p" disabled={busy || !consent || (!!usesAi && !externalConsent)} onClick={() => begin(!!usesAi)}>{usesAi ? "AI で開始" : "ローカル履歴で開始"}</button>{usesAi && <button disabled={busy || !consent} onClick={() => begin(false)}>AI 送信せず開始</button>}<button onClick={closePanel}>もどる</button></div>

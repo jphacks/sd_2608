@@ -121,6 +121,9 @@ fn registered_ipc_commands_return_the_contract_and_restrict_other_windows() {
     let other = tauri::WebviewWindowBuilder::new(&app, "other", Default::default())
         .build()
         .unwrap();
+    let late_ocr = json!({"request":{"requestId":"ocr-1-1","text":"late","failed":false}});
+    assert_eq!(invoke(&main, "ocr_complete", late_ocr.clone()), false);
+    assert_eq!(invoke(&other, "ocr_complete", late_ocr), false);
     assert_eq!(
         invoke(&other, "app_get_snapshot", json!({}))["error"]["code"],
         "permissionDenied"

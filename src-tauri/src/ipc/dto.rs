@@ -261,10 +261,12 @@ wire_struct!(ProviderSettings {
 wire_struct!(SettingsInput {
     report_mode: ReportMode, #[serde(deserialize_with = "required_nullable")] provider: Option<ProviderSettings>,
     excluded_apps: Vec<String>, reduced_motion: bool,
+    #[serde(default)] ocr_enabled: bool,
 });
 wire_struct!(SettingsView {
     report_mode: ReportMode, #[serde(deserialize_with = "required_nullable")] provider: Option<ProviderSettings>,
     excluded_apps: Vec<String>, reduced_motion: bool, revision: SafeInt, has_api_key: bool,
+    ocr_enabled: bool,
 });
 wire_struct!(RuntimeState {
     phase: RuntimePhase, #[serde(deserialize_with = "required_nullable")] tracking_id: Option<Id>,
@@ -320,9 +322,16 @@ wire_struct!(ActivitySegment {
     started_at: SafeInt,
     ended_at: SafeInt,
     app_name: String,
-    masked_title: String
+    masked_title: String,
+    #[serde(default)] window_ref: Option<Id>
 });
-wire_struct!(HistorySnapshot { id: Id, session_id: Id, captured_at: SafeInt, range_start: SafeInt, range_end: SafeInt, segments: Vec<ActivitySegment> });
+wire_struct!(WindowOcr {
+    app_name: String,
+    masked_title: String,
+    text: String
+});
+wire_struct!(OcrContext { captured_at: SafeInt, windows: Vec<WindowOcr>, unavailable_windows: SafeInt, unmatched_windows: SafeInt });
+wire_struct!(HistorySnapshot { id: Id, session_id: Id, captured_at: SafeInt, range_start: SafeInt, range_end: SafeInt, segments: Vec<ActivitySegment>, #[serde(default)] ocr: Option<OcrContext> });
 wire_struct!(ReportJobView {
     id: Id, session_id: Id, trigger: ReportTrigger, requested_at: SafeInt, due_at: SafeInt, status: JobStatus,
     attempt: SafeInt, #[serde(deserialize_with = "required_nullable")] completion_seq: Option<SafeInt>,
@@ -356,6 +365,7 @@ impl AppSnapshot {
                 provider: None,
                 excluded_apps: vec![],
                 reduced_motion: false,
+                ocr_enabled: false,
                 revision: SafeInt::ZERO,
                 has_api_key: false,
             },

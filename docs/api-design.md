@@ -10,6 +10,7 @@
 2. **TauriGateway → Rust IPC**：監視・回答・設定・レポート参照。Rust の AppService が実行可否を検証する。
 3. **FaceAdapter → Rust IPC**：顔有無の入力専用。動画や画像を渡さない。
 4. **Rust → AI サービス**：Provider アダプターが形式差を吸収。UI から外部 API を直接呼ばない。
+5. **Rust → OCR Adapter → Rust**：`app://ocr-request` と `ocr_complete` で一時画像を端末内のメイン WebView に渡し、認識文字だけを返す。業務用 AppGateway からは呼ばない。
 
 今回、自前の HTTP サーバーや REST API は作らない。OS ウィンドウの移動・終了は専用 WindowAdapter に閉じ込め、UI コンポーネントへ Tauri の import を散らさない。
 
@@ -22,6 +23,7 @@ B-09 では AppGateway の任意の `window: WindowAdapter` と AppViewActions �
 - API v1。コマンド名は snake_case、要求・応答の JSON は camelCase。すべてのコマンドをメインウィンドウだけに許可する。
 - 引数があるコマンドは `invoke(command, { request })` に統一する。引数なしは `invoke(command)`。
 - 応答は `ApiResult<T>`。通信自体の例外は Gateway が `internal` または接続エラーとして正規化する。
+- OCR 専用の `ocr_complete` は例外として受領可否の boolean を返す（下記）。
 - 更新要求に `requestId` を付ける。同じ内容・同じ ID の再送は二重適用せず元の受付結果を返す。同じ ID で内容が違えば `validation`。
 - 重複受付記録は当該プロセス内・最大1,000件。これとは別に通知 ID と `sessionId` ごとのジョブ一意性を永続的な業務条件として検証する。再起動をまたぐ自動再送はしない。
 - 状態更新・回答・予約登録は直列化する。古い取得応答を新しい状態に適用しない。
@@ -41,6 +43,10 @@ B-09 では AppGateway の任意の `window: WindowAdapter` と AppViewActions �
 | `report_get` | `{ reportId: Id }` | `Report` | 完成・失敗カード取得。存在しなければ `notFound` |
 | `report_retry` | `RetryReportRequest` | `AppSnapshot` | 失敗済み・試行番号・監視中の同意を検証。同じ ID・履歴で再実行 |
 | `data_clear` | `{ requestId: Id }` | `AppSnapshot` | 監視停止、予約取消、実行世代更新、履歴とカードを削除。設定・キーは保持 |
+
+OCR 専用コマンド `ocr_complete` は `{ request: { requestId: string, text: string, failed: boolean } }` を受け、boolean を返す。メイン WebView からの現在の未回答要求だけを受領し、期限切れ・重複・他ウィンドウの応答を false にする。要求は `app://ocr-request` の `{ requestId, image: string | null }`。PNG data URL を1枚だけ渡し、null は worker の解放を指示する。画像を業務 snapshot や AI リクエストに含めない。
+
+OCR の設定は `SettingsInput/View.ocrEnabled` の1項目。`HistorySnapshot.ocr` に取得時刻・履歴と一致した文字・失敗／不一致件数を保持する。`ActivitySegment.windowRef` は履歴照合用の不透明な参照で、AI へは送らない。[詳細](ocr-summary.md)。
 
 `runtime_start` と PC 開始は1回にまとめる。カメラは TS 側のため、成功後に FaceAdapter を起動して同じ trackingId で入力する。開始失敗は `kind: unavailable` として即座に伝える。Rust は顔情報がそろうまで在席を判定しない。
 
@@ -105,7 +111,7 @@ export type RetryReportRequest = {
 
 ## 5. 状態イベントと同期
 
-Tauri イベントは **`app://snapshot`** の1種類とし、payload は `AppSnapshot` 全体。状態更新後に発行する。時間表示だけの更新は毎秒まで、通知・ジョブ完了・停止は即時発行する。
+業務状態の Tauri イベントは **`app://snapshot`** とし、payload は `AppSnapshot` 全体。状態更新後に発行する。時間表示だけの更新は毎秒まで、通知・ジョブ完了・停止は即時発行する。OCR 専用の `app://ocr-request` はメイン WebView だけに送る一時データで、snapshot の同期とは独立する。
 
 接続の手順は次の順とする。
 

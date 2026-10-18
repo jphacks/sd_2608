@@ -36,7 +36,7 @@ impl Face {
             .checked_add(self.age_at_receipt_ms)
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct WindowKey {
     pub process_id: u32,
     pub window_id: String,

@@ -50,7 +50,7 @@ const errorDecoder: Decoder<ApiError> = object({
 const consent = object({ activity: boolean, history: boolean, externalReport: boolean });
 const provider = object({ kind: oneOf("gemini", "openAiCompatible"), endpoint: string, model: string });
 const settings = object({ reportMode: oneOf("local", "ai"), provider: nullable(provider), excludedApps: array(string),
-  reducedMotion: boolean, revision: integer, hasApiKey: boolean });
+  reducedMotion: boolean, ocrEnabled: boolean, revision: integer, hasApiKey: boolean });
 const runtime = object({ phase: oneOf("stopped", "starting", "running", "stopping", "error"), trackingId: nullable(id),
   profile: oneOf("normal", "demo"), effectiveReportMode: oneOf("local", "ai"), camera: oneOf("off", "waiting", "running", "error"),
   activity: oneOf("off", "running", "error"), consent });
@@ -66,8 +66,9 @@ export const snapshotDecoder: Decoder<AppSnapshot> = object({
   session: nullable(session), reminder: nullable(reminder), advanceNotice: nullable(object({ sessionId: id, remainingMs: integer })),
   jobs: array(job), completionSeq: integer, warning: nullable(errorDecoder),
 });
-const segment = object({ id, sessionId: id, startedAt: integer, endedAt: integer, appName: string, maskedTitle: string });
-const history = object({ id, sessionId: id, capturedAt: integer, rangeStart: integer, rangeEnd: integer, segments: array(segment) });
+const segment = object({ id, sessionId: id, startedAt: integer, endedAt: integer, appName: string, maskedTitle: string, windowRef: nullable(id) });
+const ocr = object({ capturedAt: integer, windows: array(object({ appName: string, maskedTitle: string, text: string })), unavailableWindows: integer, unmatchedWindows: integer });
+const history = object({ id, sessionId: id, capturedAt: integer, rangeStart: integer, rangeEnd: integer, segments: array(segment), ocr: nullable(ocr) });
 const content = object({ summary: string, observedFacts: array(string), nextAction: nullable(string) });
 export const reportDecoder: Decoder<Report> = object({ id, sessionId: id, trigger: oneOf("yes", "away"), createdAt: integer,
   updatedAt: integer, attempt: integer, status: oneOf("ready", "failed", "local"), history, content: nullable(content), error: nullable(errorDecoder) });

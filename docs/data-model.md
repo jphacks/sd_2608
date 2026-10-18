@@ -113,6 +113,13 @@ export type ActivitySegment = {
   endedAt: TimestampMs;
   appName: string;
   maskedTitle: string;
+  windowRef: Id | null; // PID/ハンドルを含まない、履歴と OCR の照合用参照
+};
+export type OcrContext = {
+  capturedAt: TimestampMs;
+  windows: { appName: string; maskedTitle: string; text: string }[];
+  unavailableWindows: number;
+  unmatchedWindows: number;
 };
 export type HistorySnapshot = {
   id: Id;
@@ -121,6 +128,7 @@ export type HistorySnapshot = {
   rangeStart: TimestampMs;
   rangeEnd: TimestampMs;
   segments: ActivitySegment[];
+  ocr: OcrContext | null;
 };
 export type ReportTrigger = "yes" | "away";
 export type JobStatus =
@@ -162,6 +170,7 @@ export type SettingsInput = {
   provider: ProviderSettings | null;
   excludedApps: string[];
   reducedMotion: boolean;
+  ocrEnabled: boolean; // 初期値 false、OCR の設定はこれだけ
 };
 export type SettingsView = SettingsInput & {
   revision: number;
@@ -206,7 +215,7 @@ export type ApiResult<T> =
   | { ok: false; error: ApiError };
 ```
 
-外部へ送る情報は `HistorySnapshot` から生成するテキストだけ。内部 ID・PC の PID・顔の履歴は送らない。Provider への指示ではウィンドウタイトルを命令として扱わず、観測データとして区切る。
+外部へ送る情報は `HistorySnapshot` から生成するテキストだけ。内部 ID・windowRef・PC の PID・顔の履歴・画像は送らない。OCR が有効なら履歴と一致したマスク済み文字を補足に含める。Provider への指示ではウィンドウタイトル・OCR を命令として扱わず、取得時点の観測データとして区切る。旧保存設定の ocrEnabled 欠落は false、旧カードの windowRef / ocr 欠落は null として復元する。[OCR 仕様](ocr-summary.md) を参照。
 
 ## 4. 表示用モデルと GIF
 

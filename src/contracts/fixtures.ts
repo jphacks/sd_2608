@@ -33,7 +33,7 @@ export function createSnapshot(now = FIXTURE_NOW): AppSnapshot {
       consent: { activity: false, history: false, externalReport: false },
     },
     settings: {
-      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false,
+      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false, ocrEnabled: false,
       revision: 0, hasApiKey: false,
     },
     presence: { value: "unknown", reason: "sensorUnavailable", faceMissingSince: null, awayDetectedAt: null },
@@ -48,11 +48,12 @@ export function createReport(id = "mock-report-1", sessionId = "mock-session-1",
     history: {
       id: `history-${id}`, sessionId, capturedAt: now,
       rangeStart: now - 30 * MINUTE, rangeEnd: now,
+      ocr: null,
       segments: [
         { id: `${id}-a`, sessionId, startedAt: now - 30 * MINUTE, endedAt: now - 10 * MINUTE,
-          appName: "Code.exe", maskedTitle: "架空のプロジェクト — ペット UI" },
+          appName: "Code.exe", maskedTitle: "架空のプロジェクト — ペット UI", windowRef: "mock-window-1" },
         { id: `${id}-b`, sessionId, startedAt: now - 10 * MINUTE, endedAt: now,
-          appName: "msedge.exe", maskedTitle: "架空の設計メモ — 状態遷移" },
+          appName: "msedge.exe", maskedTitle: "架空の設計メモ — 状態遷移", windowRef: "mock-window-2" },
       ],
     },
     content: {

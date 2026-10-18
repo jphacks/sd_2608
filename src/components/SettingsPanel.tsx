@@ -15,7 +15,7 @@ export function SettingsPanel({ settings, disabled, onSave }: SettingsPanelProps
       expectedSettingsRevision: settings.revision,
       values: { reportMode: text("reportMode") === "ai" ? "ai" : "local", provider,
         excludedApps: text("excludedApps").split(/\r?\n/).map(app => app.trim()).filter(Boolean),
-        reducedMotion: data.get("reducedMotion") === "on" },
+        reducedMotion: data.get("reducedMotion") === "on", ocrEnabled: data.get("ocrEnabled") === "on" },
       keyChange: keyKind === "replace" ? { kind: "replace", value: text("apiKey") } :
         keyKind === "remove" ? { kind: "remove" } : { kind: "keep" },
     }).finally(() => { const key = form.elements.namedItem("apiKey"); if (key instanceof HTMLInputElement) key.value = ""; });
@@ -31,6 +31,8 @@ export function SettingsPanel({ settings, disabled, onSave }: SettingsPanelProps
       <label>新しい API キー<input name="apiKey" type="password" autoComplete="new-password" /></label>
       <label>除外アプリ（1行1件）<textarea name="excludedApps" defaultValue={settings.excludedApps.join("\n")} /></label>
       <label className="check"><input name="reducedMotion" type="checkbox" defaultChecked={settings.reducedMotion} />動きを減らす</label>
+      <label className="check"><input name="ocrEnabled" type="checkbox" defaultChecked={settings.ocrEnabled} />ウィンドウの内容を OCR で取得</label>
+      <p>オンの場合、AI 要約の作成時に全ウィンドウを読み取り、作業履歴と一致するウィンドウの文字を要約に使います。画像は保存・送信しません。最小化・保護・除外対象など、取得できないウィンドウはスキップします。</p>
       <button type="submit">設定を保存</button>
     </fieldset>
   </form>;

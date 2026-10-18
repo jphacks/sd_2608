@@ -29,7 +29,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -80,7 +81,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -162,9 +164,11 @@
               "startedAt": 1792195140000,
               "endedAt": 1792195200000,
               "appName": "Example.exe",
-              "maskedTitle": "架空の作業"
+              "maskedTitle": "架空の作業",
+              "windowRef": null
             }
-          ]
+          ],
+          "ocr": null
         },
         "content": {
           "summary": "架空の作業を確認しました。",
@@ -204,9 +208,11 @@
               "startedAt": 1792195140000,
               "endedAt": 1792195200000,
               "appName": "Example.exe",
-              "maskedTitle": "架空の作業"
+              "maskedTitle": "架空の作業",
+              "windowRef": null
             }
-          ]
+          ],
+          "ocr": null
         },
         "content": null,
         "error": {
@@ -244,9 +250,11 @@
               "startedAt": 1792195140000,
               "endedAt": 1792195200000,
               "appName": "Example.exe",
-              "maskedTitle": "架空の作業"
+              "maskedTitle": "架空の作業",
+              "windowRef": null
             }
-          ]
+          ],
+          "ocr": null
         },
         "content": null,
         "error": null
@@ -332,7 +340,8 @@
             "excludedApps": [],
             "reducedMotion": false,
             "revision": 0,
-            "hasApiKey": true
+            "hasApiKey": true,
+            "ocrEnabled": false
           },
           "presence": {
             "value": "present",
@@ -432,7 +441,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -478,7 +488,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -524,7 +535,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -571,7 +583,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -618,7 +631,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -665,7 +679,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -712,7 +727,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -748,7 +764,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -794,7 +811,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -841,7 +859,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": "false"
+          "hasApiKey": "false",
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -887,7 +906,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -938,7 +958,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -1014,7 +1035,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -1086,7 +1108,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -1142,7 +1165,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": false
+          "hasApiKey": false,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "unknown",
@@ -1204,9 +1228,11 @@
               "startedAt": 1792195140000,
               "endedAt": 1792195200000,
               "appName": "Example.exe",
-              "maskedTitle": "架空の作業"
+              "maskedTitle": "架空の作業",
+              "windowRef": null
             }
-          ]
+          ],
+          "ocr": null
         },
         "error": null
       }
@@ -1239,9 +1265,11 @@
               "startedAt": 1792195140000,
               "endedAt": 9007199254740992,
               "appName": "Example.exe",
-              "maskedTitle": "架空の作業"
+              "maskedTitle": "架空の作業",
+              "windowRef": null
             }
-          ]
+          ],
+          "ocr": null
         },
         "content": {
           "summary": "架空の作業を確認しました。",
@@ -1338,7 +1366,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -1410,7 +1439,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -1478,7 +1508,8 @@
           "excludedApps": [],
           "reducedMotion": false,
           "revision": 0,
-          "hasApiKey": true
+          "hasApiKey": true,
+          "ocrEnabled": false
         },
         "presence": {
           "value": "present",
@@ -1513,6 +1544,116 @@
           "sessionId": "session-1",
           "remainingMs": -1
         }
+      }
+    }
+  },
+  {
+    "name": "report with OCR observations",
+    "kind": "report",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "ready",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業",
+              "windowRef": null
+            }
+          ],
+          "ocr": {
+            "capturedAt": 1792195200000,
+            "windows": [
+              {
+                "appName": "editor.exe",
+                "maskedTitle": "document",
+                "text": "masked local OCR"
+              }
+            ],
+            "unavailableWindows": 1,
+            "unmatchedWindows": 2
+          }
+        },
+        "content": {
+          "summary": "架空の作業を確認しました。",
+          "observedFacts": [
+            "架空のウィンドウが前面にありました。"
+          ],
+          "nextAction": null
+        },
+        "error": null
+      }
+    }
+  },
+  {
+    "name": "non-text OCR observation",
+    "kind": "report",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "id": "report-1",
+        "sessionId": "session-1",
+        "trigger": "yes",
+        "createdAt": 1792195200000,
+        "updatedAt": 1792195200000,
+        "attempt": 1,
+        "status": "ready",
+        "history": {
+          "id": "history-1",
+          "sessionId": "session-1",
+          "capturedAt": 1792195200000,
+          "rangeStart": 1792195140000,
+          "rangeEnd": 1792195200000,
+          "segments": [
+            {
+              "id": "segment-1",
+              "sessionId": "session-1",
+              "startedAt": 1792195140000,
+              "endedAt": 1792195200000,
+              "appName": "Example.exe",
+              "maskedTitle": "架空の作業",
+              "windowRef": null
+            }
+          ],
+          "ocr": {
+            "capturedAt": 1792195200000,
+            "windows": [
+              {
+                "appName": "editor.exe",
+                "maskedTitle": "document",
+                "text": 42
+              }
+            ],
+            "unavailableWindows": 1,
+            "unmatchedWindows": 2
+          }
+        },
+        "content": {
+          "summary": "架空の作業を確認しました。",
+          "observedFacts": [
+            "架空のウィンドウが前面にありました。"
+          ],
+          "nextAction": null
+        },
+        "error": null
       }
     }
   }

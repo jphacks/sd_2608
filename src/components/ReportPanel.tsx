@@ -21,6 +21,12 @@ export function ReportPanel({ state, queuedCount, busy, onClose, onRetry }: Repo
           <ul>{state.report.history.segments.map(segment => <li key={segment.id}>{segment.appName}：{segment.maskedTitle}</li>)}</ul>}
       </details>
       {state.report.status === "failed" && <button disabled={busy} onClick={onRetry}>同じ履歴で再試行</button>}
+      {state.report.history.ocr && <details><summary>作業履歴と照合した OCR（{state.report.history.ocr.windows.length}件）</summary>
+        <p>取得日時：{new Date(state.report.history.ocr.capturedAt).toLocaleString("ja-JP")}。要約作成時点の文字で、作業履歴のウィンドウと照合した補足情報です。</p>
+        <p>{state.report.history.ocr.unmatchedWindows}件は作業履歴と不一致、{state.report.history.ocr.unavailableWindows}件は取得できませんでした。</p>
+        {!state.report.history.ocr.windows.length && <p>利用できる文字がないため、要約には作業履歴だけを使います。</p>}
+        {state.report.history.ocr.windows.map((window, index) => <section key={index}><h3>{window.appName}：{window.maskedTitle}</h3><p>{window.text}</p></section>)}
+      </details>}
     </>}
     <button onClick={onClose}>{queuedCount ? `次のカードへ（残り${queuedCount}件）` : "閉じる"}</button>
   </section>;
