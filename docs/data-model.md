@@ -171,6 +171,8 @@ export type SettingsInput = {
   excludedApps: string[];
   reducedMotion: boolean;
   ocrEnabled: boolean; // 初期値 false、OCR の設定はこれだけ
+  notificationSound: "dog" | "system" | "none"; // 初期値 dog、旧保存設定の欠落も dog
+  timings: Record<TimingProfile, TimingSettings>; // 両版の13項目、各値は整数ミリ秒。詳細は timing-settings.md
 };
 export type SettingsView = SettingsInput & {
   revision: number;

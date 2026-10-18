@@ -23,7 +23,40 @@
     "reducedMotion": false,
     "revision": 0,
     "hasApiKey": false,
-    "ocrEnabled": false
+    "ocrEnabled": false,
+    "notificationSound": "dog",
+    "timings": {
+      "normal": {
+        "absenceMs": 30000,
+        "reportDelayMs": 300000,
+        "firstMs": 1800000,
+        "advanceNoticeLeadMs": 180000,
+        "firstLimitMs": 2100000,
+        "snoozeMs": 600000,
+        "cooldownMs": 120000,
+        "hardMs": 3600000,
+        "hardRepeatMs": 300000,
+        "yesGraceMs": 600000,
+        "idleMs": 5000,
+        "switchWindowMs": 10000,
+        "switchIdleMs": 2000
+      },
+      "demo": {
+        "absenceMs": 5000,
+        "reportDelayMs": 5000,
+        "firstMs": 30000,
+        "advanceNoticeLeadMs": 3000,
+        "firstLimitMs": 35000,
+        "snoozeMs": 10000,
+        "cooldownMs": 2000,
+        "hardMs": 60000,
+        "hardRepeatMs": 5000,
+        "yesGraceMs": 10000,
+        "idleMs": 2000,
+        "switchWindowMs": 5000,
+        "switchIdleMs": 1000
+      }
+    }
   },
   "presence": {
     "value": "unknown",

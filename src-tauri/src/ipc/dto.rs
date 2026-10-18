@@ -90,6 +90,12 @@ macro_rules! wire_enum {
 }
 wire_enum!(TimingProfile { Normal, Demo });
 wire_enum!(ReportMode { Local, Ai });
+wire_enum!(NotificationSound { Dog, System, None });
+impl Default for NotificationSound {
+    fn default() -> Self {
+        Self::Dog
+    }
+}
 wire_enum!(RuntimePhase {
     Stopped,
     Starting,
@@ -191,6 +197,8 @@ macro_rules! wire_struct {
         pub struct $name { $($(#[$attribute])* pub $field: $ty),* }
     };
 }
+mod timing_settings;
+pub use timing_settings::{TimingProfiles, TimingSettings};
 wire_struct!(ApiError {
     code: ErrorCode,
     message: String,
@@ -262,11 +270,15 @@ wire_struct!(SettingsInput {
     report_mode: ReportMode, #[serde(deserialize_with = "required_nullable")] provider: Option<ProviderSettings>,
     excluded_apps: Vec<String>, reduced_motion: bool,
     #[serde(default)] ocr_enabled: bool,
+    #[serde(default)] notification_sound: NotificationSound,
+    #[serde(default)] timings: TimingProfiles,
 });
 wire_struct!(SettingsView {
     report_mode: ReportMode, #[serde(deserialize_with = "required_nullable")] provider: Option<ProviderSettings>,
     excluded_apps: Vec<String>, reduced_motion: bool, revision: SafeInt, has_api_key: bool,
     ocr_enabled: bool,
+    notification_sound: NotificationSound,
+    timings: TimingProfiles,
 });
 wire_struct!(RuntimeState {
     phase: RuntimePhase, #[serde(deserialize_with = "required_nullable")] tracking_id: Option<Id>,
@@ -366,6 +378,8 @@ impl AppSnapshot {
                 excluded_apps: vec![],
                 reduced_motion: false,
                 ocr_enabled: false,
+                notification_sound: NotificationSound::default(),
+                timings: TimingProfiles::default(),
                 revision: SafeInt::ZERO,
                 has_api_key: false,
             },

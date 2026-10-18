@@ -175,7 +175,7 @@ pub(super) fn register(
         created_at: None,
     };
     let delay = if trigger == d::ReportTrigger::Away {
-        sitting::timings(state.snapshot.runtime.profile).report_delay_ms
+        sitting::timings(state).report_delay_ms
     } else {
         0
     };

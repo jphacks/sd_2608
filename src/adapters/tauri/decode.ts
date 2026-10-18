@@ -2,6 +2,7 @@ import type {
   ApiError, ApiResult, AppSnapshot, FaceInput, Report,
 } from "../../contracts/domain.js";
 import type { IpcCommands } from "../../contracts/ipc.js";
+import { validateTimingProfiles } from "../../contracts/timings.js";
 
 export class DecodeError extends Error {
   constructor() { super("アプリからの応答形式を確認できません。アプリを更新して再接続してください。"); }
@@ -49,8 +50,28 @@ const errorDecoder: Decoder<ApiError> = object({
 });
 const consent = object({ activity: boolean, history: boolean, externalReport: boolean });
 const provider = object({ kind: oneOf("gemini", "openAiCompatible"), endpoint: string, model: string });
+const timingSettings = object({
+  absenceMs: integer,
+  reportDelayMs: integer,
+  firstMs: integer,
+  advanceNoticeLeadMs: integer,
+  firstLimitMs: integer,
+  snoozeMs: integer,
+  cooldownMs: integer,
+  hardMs: integer,
+  hardRepeatMs: integer,
+  yesGraceMs: integer,
+  idleMs: integer,
+  switchWindowMs: integer,
+  switchIdleMs: integer,
+});
+const timingProfiles = (value: unknown) => {
+  const profiles = object({ normal: timingSettings, demo: timingSettings })(value);
+  if (validateTimingProfiles(profiles)) invalid();
+  return profiles;
+};
 const settings = object({ reportMode: oneOf("local", "ai"), provider: nullable(provider), excludedApps: array(string),
-  reducedMotion: boolean, ocrEnabled: boolean, revision: integer, hasApiKey: boolean });
+  reducedMotion: boolean, ocrEnabled: boolean, notificationSound: oneOf("dog", "system", "none"), timings: timingProfiles, revision: integer, hasApiKey: boolean });
 const runtime = object({ phase: oneOf("stopped", "starting", "running", "stopping", "error"), trackingId: nullable(id),
   profile: oneOf("normal", "demo"), effectiveReportMode: oneOf("local", "ai"), camera: oneOf("off", "waiting", "running", "error"),
   activity: oneOf("off", "running", "error"), consent });

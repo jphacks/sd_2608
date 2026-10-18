@@ -62,6 +62,10 @@ html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] 
 .pochi-app .bub label.check { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; font-weight:500; margin:12px 0; }
 .pochi-app .bub input[type=checkbox] { width:auto; min-height:0; margin:4px 0 0; accent-color:var(--ear); flex:none; }
 .pochi-app .bub fieldset { min-width:0; padding:0; border:0; }
+.pochi-app .timing-settings { border-block:1px solid var(--line); margin:16px 0; padding:8px 0; }
+.pochi-app .timing-settings details { margin:12px 0; }
+.pochi-app .timing-settings p,.pochi-app .timing-settings small { display:block; font-size:12px; font-weight:400; color:var(--sub); }
+.pochi-app .timing-settings label { margin-bottom:16px; }
 .pochi-app .settings-panel>p,.pochi-app .settings-panel fieldset>p { font-size:12.5px; color:var(--sub); }
 .pochi-app .settings-panel fieldset>button { width:100%; background:var(--ear); color:var(--card); border-color:var(--ear); }
 .pochi-app .alert { background:var(--cream); border:1px solid var(--line); border-radius:12px; padding:10px; font-size:12.5px; margin-bottom:8px; }

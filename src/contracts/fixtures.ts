@@ -1,4 +1,5 @@
 import type { AppSnapshot, Report, ReportJobView } from "./domain.js";
+import { createTimingProfiles } from "./timings.js";
 
 export const FIXTURE_NOW = Date.UTC(2026, 9, 17, 0, 0);
 export const MINUTE = 60_000;
@@ -33,7 +34,8 @@ export function createSnapshot(now = FIXTURE_NOW): AppSnapshot {
       consent: { activity: false, history: false, externalReport: false },
     },
     settings: {
-      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false, ocrEnabled: false,
+      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false, ocrEnabled: false, notificationSound: "dog",
+      timings: createTimingProfiles(),
       revision: 0, hasApiKey: false,
     },
     presence: { value: "unknown", reason: "sensorUnavailable", faceMissingSince: null, awayDetectedAt: null },
