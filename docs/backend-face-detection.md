@@ -58,7 +58,7 @@ Stop・削除・dispose・ページ離脱では、Rust の応答を待つ前に�
 
 実機では、開始直後の停止、許可後に顔を出す／隠す、USB カメラの切断、停止・再開・再読み込みを試す。画面の顔あり／なしの案内とエラーを確認し、停止後にカメラが残らず、再開後の旧結果が混ざらないことを見る。
 
-カメラを使わず本体を確認する場合は、`tauri dev` の「開発用：手動の顔入力」で同意して開始し、顔あり／なしを切り替える。profile=demo、source=manual と「手動テスト（カメラ不使用）」の表示で実カメラと区別する。通常 profile の manual は Rust でも拒否し、本番ビルドには操作パネルを含めない。
+現行の `npm run desktop:demo` は実カメラを使い、手動の顔入力パネルは表示しない。[デモ手順](backend-integration.md)を参照。カメラを使わない表示確認には `npm run dev:mock` を使う。開発テスト用の `source=manual` ポートは残し、通常 profile の manual は Rust でも拒否するが、アプリの通常・デモ起動からは接続しない。
 
 モデルだけの模擬映像確認は `npm run dev` で起動し、`/tests/browser/face-capture-smoke.html` を開く。完了時に `PASS`・`samples:6`・`allTracksStopped:true` を表示する。このページは開発サーバー用で、本番の dist に含めない。
 

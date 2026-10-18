@@ -164,14 +164,31 @@ function captureSetup() {
   };
   return { ...f, camera, manual };
 }
-test("開始がRustで成功してから同じtrackingIdでカメラを開始し、顔入力をIPCへ送る", async () => {
+test("通常・デモともに同意した開始が成功してから実カメラの経路を使い、短縮プロファイルと取得元を保つ", async () => {
+  for (const profile of ["normal", "demo"]) {
+    const f = captureSetup(); await f.gateway.connect(() => {});
+    assert.equal(f.camera.starts.length, 0);
+    const result = await f.gateway.start({ ...startInput, profile }); assert.equal(result.ok, true);
+    assert.equal(result.data.runtime.profile, profile);
+    assert.equal(f.transport.calls.find(call => call.command === "runtime_start").args.request.profile, profile);
+    assert.equal(f.manual.starts.length, 0);
+    const capture = f.camera.starts[0]; assert.equal(capture.trackingId, result.data.runtime.trackingId);
+    assert.equal(await capture.submit({ trackingId: capture.trackingId, sequence: 1, observedAt: 10_000, source: "camera", kind: "sample", faceDetected: false }), true);
+    assert.equal(f.transport.calls.at(-1).command, "face_submit");
+    assert.equal(f.transport.calls.at(-1).args.request.source, "camera");
+    assert.equal(f.transport.calls.at(-1).args.request.faceDetected, false);
+    await f.gateway.dispose(); assert.equal(f.camera.stops, 1);
+  }
+});
+
+test("デモでカメラの開始に失敗しても手動入力へ切り替えず、記録を停止する", async () => {
   const f = captureSetup(); await f.gateway.connect(() => {});
-  assert.equal(f.camera.starts.length, 0);
-  const result = await f.gateway.start(startInput); assert.equal(result.ok, true);
-  const capture = f.camera.starts[0]; assert.equal(capture.trackingId, result.data.runtime.trackingId);
-  assert.equal(await capture.submit({ trackingId: capture.trackingId, sequence: 1, observedAt: 10_000, source: "camera", kind: "sample", faceDetected: false }), true);
-  assert.equal(f.transport.calls.at(-1).command, "face_submit"); assert.equal(f.transport.calls.at(-1).args.request.faceDetected, false);
-  await f.gateway.dispose(); assert.equal(f.camera.stops, 1);
+  f.camera.start = () => { throw new Error("camera unavailable"); };
+  const result = await f.gateway.start({ ...startInput, profile: "demo" });
+  assert.equal(result.ok, false); assert.equal(result.error.code, "internal");
+  assert.equal(f.manual.starts.length, 0); assert.equal(f.camera.stops, 1);
+  assert.ok(f.transport.calls.some(call => call.command === "runtime_stop"));
+  await f.gateway.dispose();
 });
 test("停止のIPCが失敗・遅延してもカメラは直ちに解放し、古い停止要求では新カメラを止めない", async () => {
   const f = captureSetup(); await f.gateway.connect(() => {}); const started = await f.gateway.start(startInput);

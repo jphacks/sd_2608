@@ -76,4 +76,4 @@ PC 情報を使う短縮診断は次の明示実行で行える。約65秒で終
 cargo run --manifest-path src-tauri/Cargo.toml --locked --example presence_probe
 ```
 
-実アプリでは `npm run tauri dev` の手動入力パネルで demo を開始し、顔ありを選ぶと短縮通知を確認できる。顔なしと実際の入力停止が5秒続けば away。通常の開始は実カメラと通常しきい値を使用する。両モードとも保存とレポート生成は後続作業。
+現行の実アプリでは `npm run desktop:demo` で実カメラを使った短縮通知を確認する。カメラの視野外へ離れて PC 入力も止め、顔なしが5秒続けば away。通常の開始も実カメラを使い、時間だけ通常しきい値になる。手動入力パネルは廃止した。[現在の保存・レポートを含むデモ手順](backend-integration.md)を参照。
