@@ -35,7 +35,7 @@ export type PresenceState = {
   value: Presence;
   reason: PresenceReason;
   faceMissingSince: TimestampMs | null;
-  awayDetectedAt: TimestampMs | null; // 30秒の条件を満たして確定した時刻
+  awayDetectedAt: TimestampMs | null; // 設定した離席条件を満たして確定した時刻
 };
 export type SittingSession = {
   id: Id;
@@ -132,6 +132,22 @@ export type ProviderSettings = {
   model: string;
 };
 export type NotificationSound = "dog" | "system" | "none";
+export type TimingSettings = {
+  absenceMs: DurationMs;
+  reportDelayMs: DurationMs;
+  firstMs: DurationMs;
+  advanceNoticeLeadMs: DurationMs;
+  firstLimitMs: DurationMs;
+  snoozeMs: DurationMs;
+  cooldownMs: DurationMs;
+  hardMs: DurationMs;
+  hardRepeatMs: DurationMs;
+  yesGraceMs: DurationMs;
+  idleMs: DurationMs;
+  switchWindowMs: DurationMs;
+  switchIdleMs: DurationMs;
+};
+export type TimingProfiles = Record<TimingProfile, TimingSettings>;
 export type SettingsInput = {
   reportMode: "local" | "ai";
   provider: ProviderSettings | null;
@@ -139,6 +155,7 @@ export type SettingsInput = {
   reducedMotion: boolean;
   ocrEnabled: boolean;
   notificationSound: NotificationSound;
+  timings: TimingProfiles;
 };
 export type SettingsView = SettingsInput & {
   revision: number;

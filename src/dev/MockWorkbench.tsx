@@ -53,7 +53,7 @@ export default function MockWorkbench() {
           <button onClick={() => setPreview(null)}>業務状態の表示へ戻る</button>
         </div>
       </details>
-      <p>時計は手動です。5分予約は「+1分」を5回、その後「+10秒」で完成します。時間判定は Rust 実装の代替テストではありません。</p>
+      <p>時計は手動です。通知・レポートの待ち時間は設定画面で変更できます。シナリオの読込では初期値に戻ります。時間判定は Rust 実装の代替テストではありません。</p>
     </aside>
     <PochiApp state={viewState} actions={actions} petManifest={petManifest} desktop={windowPreview} />
   </>;

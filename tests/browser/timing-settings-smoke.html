@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>時間設定の自動テスト</title>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { SettingsPanel } from "/src/components/SettingsPanel.tsx";
+import { createSnapshot } from "/src/contracts/fixtures.ts";
+import { createTimingProfiles } from "/src/contracts/timings.ts";
+const output = document.querySelector("#result"), root = createRoot(document.querySelector("#app"));
+const checks = [];
+let settings = createSnapshot().settings, disabled = false, saves = 0;
+const render = () => root.render(React.createElement(SettingsPanel, { key: settings.revision, settings, disabled, profile: "demo", onSave: async request => {
+  settings = { ...settings, ...request.values, revision: settings.revision + 1 };
+  saves++; render();
+} }));
+const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const check = (value, label) => { if (!value) throw Error(label); checks.push(label); };
+const input = (mode, key) => document.querySelector(`[name="timings.${mode}.${key}"]`);
+const set = (mode, values) => { for (const [key, value] of Object.entries(values)) input(mode, key).value = String(value); };
+const save = async () => { document.querySelector('button[type="submit"]').click(); await paint(); };
+const reset = mode => [...document.querySelectorAll('button[type="button"]')].find(button => button.textContent === `${mode === "normal" ? "通常版" : "デモ版"}の時間を初期値に戻す`).click();
+try {
+  render(); await paint();
+  check(document.querySelectorAll('[name^="timings."]').length === 26, "通常・デモそれぞれ13項目を編集できる");
+  check(input("normal", "firstMs").value === "30" && input("demo", "firstMs").value === "30", "初期値は通常30分・デモ30秒");
+  check(input("normal", "absenceMs").value === "30" && input("demo", "absenceMs").value === "5", "離席待ちの初期値は通常30秒・デモ5秒");
+  check(input("demo", "firstMs").closest("details").open, "デモではデモ版の時間設定を先に開く");
+  set("normal", { firstMs: 1.5, advanceNoticeLeadMs: 0.5, firstLimitMs: 2, hardMs: 5, reportDelayMs: 0.75 });
+  set("demo", { firstMs: 12, advanceNoticeLeadMs: 4, firstLimitMs: 16 });
+  await save();
+  check(saves === 1 && settings.timings.normal.firstMs === 90_000 && settings.timings.normal.reportDelayMs === 45_000, "分の小数を正しいミリ秒に変換して保存");
+  check(settings.timings.demo.firstMs === 12_000 && input("demo", "firstMs").value === "12", "デモの秒指定を別に保存して再表示");
+  set("normal", { advanceNoticeLeadMs: 2 }); await save();
+  check(saves === 1 && document.querySelector('[role="alert"]').textContent.includes("予告時間"), "休憩の目安を超える予告は保存せず理由を表示");
+  set("normal", { advanceNoticeLeadMs: 0.5 });
+  reset("demo"); await save();
+  check(saves === 2 && JSON.stringify(settings.timings.demo) === JSON.stringify(createTimingProfiles().demo), "デモ版だけを初期値に戻せる");
+  check(settings.timings.normal.firstMs === 90_000, "デモの初期値復元で通常設定を変えない");
+  set("demo", { advanceNoticeLeadMs: 0, reportDelayMs: 0, cooldownMs: 0, yesGraceMs: 0 }); await save();
+  check(saves === 3 && settings.timings.demo.advanceNoticeLeadMs === 0 && settings.timings.demo.reportDelayMs === 0, "予告なしとレポート即時作成を保存できる");
+  reset("normal"); await save();
+  check(saves === 4 && settings.timings.normal.firstMs === 1_800_000 && settings.timings.demo.advanceNoticeLeadMs === 0, "通常版だけ初期値に戻し、デモの編集を保持");
+  disabled = true; render(); await paint();
+  check([...document.querySelectorAll('[name^="timings."]')].every(field => field.matches(":disabled")), "記録中はすべての時間設定を無効にする");
+  output.textContent = JSON.stringify({result: "PASS", checks}, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}\nPassed: ${JSON.stringify(checks)}`; }
+</script></html>

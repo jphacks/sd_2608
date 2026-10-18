@@ -59,4 +59,5 @@ export type ReportPanelProps = {
 };
 export type SettingsPanelProps = {
   settings: SettingsView; disabled: boolean; onSave(input: SaveSettingsInput): Promise<void>;
+  profile?: import("./domain.js").TimingProfile;
 };

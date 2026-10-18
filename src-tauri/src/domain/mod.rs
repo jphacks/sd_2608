@@ -180,7 +180,7 @@ impl Engine {
             None
         }
     }
-    /// 最初の30分の目安までの予告。表示を閉じても通知・回答の状態は変更しない。
+    /// 設定した最初の休憩目安までの予告。表示を閉じても通知・回答の状態は変更しない。
     pub fn advance_notice(&self) -> Option<AdvanceNotice> {
         if self.presence.value != Presence::Present {
             return None;

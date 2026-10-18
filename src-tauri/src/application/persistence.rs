@@ -27,6 +27,7 @@ fn valid_paragraph(value: &str, max: usize) -> bool {
             .any(|c| c.is_control() && c != '\n' && c != '\t' && c != '\r')
 }
 pub fn validate_settings(values: &SettingsInput) -> Result<(), ApiError> {
+    values.timings.validate()?;
     if values.excluded_apps.len() > 100
         || values.excluded_apps.iter().any(|app| {
             !valid_text(app, 200, false) || app != app.trim() || app.contains(['/', '\\'])
@@ -156,6 +157,7 @@ impl Persistence {
                     reduced_motion: false,
                     ocr_enabled: false,
                     notification_sound: initial.notification_sound,
+                    timings: initial.timings,
                 },
                 secret_id: None,
             },
@@ -218,6 +220,7 @@ impl Persistence {
             reduced_motion: self.settings.values.reduced_motion,
             ocr_enabled: self.settings.values.ocr_enabled,
             notification_sound: self.settings.values.notification_sound,
+            timings: self.settings.values.timings.clone(),
             revision: self.settings.revision,
             has_api_key: self.settings.secret_id.is_some() && !self.secret_warning,
         }

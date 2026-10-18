@@ -5,6 +5,7 @@ import type { ApiError, ApiResult, AppSnapshot, Id } from "../contracts/domain.j
 import type { AppViewActions, AppViewModel, UiOperation } from "../contracts/ui.js";
 import type { ReportListItem } from "../contracts/api.js";
 import { finishMotion, initialMotion, moveTo } from "../pochi/animation.js";
+import { formatDuration } from "../presentation/timingSettings.js";
 
 const connectionError = (): ApiError => ({ code: "internal", message: "接続または取得に失敗しました。再接続してください。", retryable: true });
 
@@ -114,7 +115,6 @@ export class AppController {
     const showNotice = noticeSessionId && noticeKey !== this.dismissedAdvanceNotice
       && snapshot.runtime.phase === "running" && snapshot.presence.value === "present"
       && snapshot.session?.endedAt === null && snapshot.session.id === noticeSessionId && !reminder;
-    const noticeUnit = snapshot.runtime.profile === "demo" ? 1_000 : 60_000;
     const currentReportId = this.currentReportId();
     const completions = snapshot.jobs.filter(job => job.completionSeq !== null && job.completionSeq > this.seenCompletion)
       .sort((a, b) => a.completionSeq! - b.completionSeq!);
@@ -129,7 +129,7 @@ export class AppController {
       snapshot,
       motion,
       advanceNotice: showNotice ? { sessionId: noticeSessionId,
-        text: notice ? `あと${Math.ceil(notice.remainingMs / noticeUnit)}${snapshot.runtime.profile === "demo" ? "秒" : "分"}ほどで休憩の目安だよ。区切りのよいところで、ひと息つく準備をしよう。`
+        text: notice ? `あと${formatDuration(notice.remainingMs)}ほどで休憩の目安だよ。区切りのよいところで、ひと息つく準備をしよう。`
           : "そろそろ休憩の時間だよ。区切りのよいところで、ひと息つこう。" } : null,
       pet: {
         pose: resting ? "lie" : "sit",
