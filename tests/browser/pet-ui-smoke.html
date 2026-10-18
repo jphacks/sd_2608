@@ -23,11 +23,23 @@ const button = text => [...document.querySelectorAll(".bub button")].find(item =
 const bubble = () => document.querySelector(".bub");
 const finishClose = async () => { await new Promise(resolve => setTimeout(resolve, 260)); await paint(); };
 const openMenu = async () => { document.querySelector(".chip").click(); await paint(); };
+const settingsReady = async () => {
+  const deadline = performance.now() + 8000;
+  while (!document.querySelector(".settings-panel") || bubble().getAttribute("aria-hidden") === "true") {
+    if (performance.now() > deadline) throw Error("起き上がり後に設定が開きません");
+    await paint();
+  }
+};
 controller.subscribe(() => root.render(React.createElement(PochiApp, {
   state: controller.getState(), actions, petManifest, desktop: true,
 })));
 try {
   await controller.connect(); await paint();
+  const entranceDeadline = performance.now() + 10_000;
+  while (document.querySelector('.pochi-app')?.dataset.entrance !== 'done') {
+    if (performance.now() > entranceDeadline) throw Error('起動アニメーションが終了しません');
+    await paint();
+  }
   check(!document.querySelector(".gear"), "停止中の常設歯車はない");
   const close = document.querySelector(".bubble-close"), style = getComputedStyle(close);
   check(close.textContent === "×" && style.borderRadius === "50%" && style.backgroundColor === "rgb(243, 228, 209)" && style.width === "28px", "✕を28pxの淡い薄茶色の円に小さくする");
@@ -67,12 +79,15 @@ try {
   check(bubble().hidden, "背後のアプリへのクリック通知でも吹き出しを閉じる");
   await openMenu();
   document.querySelector(".gear").click(); await paint();
+  check(controller.getState().motion.id === "rest_to_sit" && bubble().getAttribute("aria-hidden") === "true", "設定を開くと起き上がり、設定は座るまで待つ");
+  await settingsReady();
   check(!!document.querySelector(".settings-panel"), "メニューの歯車から設定が開く");
   const back = document.querySelector(".bub-header .bubble-back");
   check(back && back.getBoundingClientRect().left < document.querySelector(".bubble-close").getBoundingClientRect().left, "設定画面の左上に戻るボタンを表示");
   back.click(); await paint();
   check(document.querySelector(".menu-grid") && !document.querySelector(".settings-panel"), "設定の戻るボタンでメニューへ戻る");
   document.querySelector(".gear").click(); await paint();
+  await settingsReady();
   document.querySelector(".bubble-close").click(); await finishClose();
   check(bubble().hidden, "設定も✕で閉じる");
   await controller.actions.start({ profile: "demo", expectedSettingsRevision: 0, reportMode: "local",
