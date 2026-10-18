@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppViewProps } from "../contracts/ui.js";
 import type { TimingProfile } from "../contracts/domain.js";
 import { SettingsPanel } from "../components/SettingsPanel.js";
@@ -6,6 +6,7 @@ import { ReportPanel } from "../components/ReportPanel.js";
 import { ReportHistory } from "../components/ReportHistory.js";
 import { AnimatedBubble } from "../components/AnimatedBubble.js";
 import { PochiSprite } from "./PochiSprite.js";
+import { PochiArrival } from "./PochiArrival.js";
 import "./pochi.css";
 
 const duration = (ms: number) => {
@@ -19,6 +20,8 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
   desktop?: boolean; profile?: TimingProfile; manual?: boolean;
 }) {
   const [panel, setPanel] = useState<Panel>("home");
+  const [entrance, setEntrance] = useState<"playing" | "leaving" | "done">("playing");
+  const finishEntrance = useCallback(() => setEntrance(current => current === "playing" ? "leaving" : current), []);
   const [consent, setConsent] = useState(false);
   const [externalConsent, setExternalConsent] = useState(false);
   const [pinned, setPinned] = useState(true);
@@ -38,7 +41,14 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
   const showAdvanceNotice = !!state.advanceNotice && (panel === "home" || panel === "quiet")
     && state.connection === "connected" && !state.error
     && !state.bubble && !reportOpen && !generating && !scheduled;
-  const hideBubble = dismissed;
+  const arriving = entrance === "playing";
+  const urgent = !!state.error || !!snapshot?.warning || !!state.bubble || reportOpen;
+  const hideBubble = dismissed || (arriving && !urgent);
+  useEffect(() => {
+    if (entrance !== "leaving") return;
+    const timer = setTimeout(() => setEntrance("done"), reduced ? 0 : 200);
+    return () => clearTimeout(timer);
+  }, [entrance, reduced]);
   // 毎秒の計時更新では再表示せず、新しい通知・エラー・完成カードは表示する。
   const messageKeys = [
     `connection:${state.connection}`,
@@ -126,7 +136,8 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
   const togglePin = () => {
     const value = !pinned; setPinned(value); void actions.pinWindow(value);
   };
-  return <main className="pochi-app" data-reduced-motion={reduced} aria-label="ポチ">
+  return <main className="pochi-app" data-reduced-motion={reduced} data-entrance={entrance} aria-label="ポチ"
+    onClickCapture={() => { if (arriving && urgent) finishEntrance(); }}>
     <div className="pet">
       <AnimatedBubble open={!hideBubble} reduced={reduced} wide={panel === "settings"} label={panel === "settings" ? "ポチの設定" : "ポチのふきだし"}>
         <div className="bub-header">
@@ -183,8 +194,8 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
         <p className="status-line" role="status">{state.pet.statusText}</p>
         </div>
       </AnimatedBubble>
-      <button className={`chip${running || hideBubble ? " on" : ""}`} data-pochi-hit aria-label="作業メニューを開く" onClick={() => openPanel("menu")}>{running ? <><span className="timer-label">作業時間</span><time aria-label="連続在席時間">{duration(snapshot?.session?.elapsedMs ?? 0)}</time></> : state.pet.statusText}</button>
-      <div className={`dwrap${state.motion.id === "rest" ? " lying" : ""}`}><span className="zz" aria-hidden="true">z z</span><button id="petbtn" data-pochi-hit="sprite" aria-label="ポチ：クリックで開始・メニュー、ダブルクリックで設定、ドラッグで移動"
+      <button className={`chip${!arriving && (running || hideBubble) ? " on" : ""}`} data-pochi-hit aria-label="作業メニューを開く" onClick={() => openPanel("menu")}>{running ? <><span className="timer-label">作業時間</span><time aria-label="連続在席時間">{duration(snapshot?.session?.elapsedMs ?? 0)}</time></> : state.pet.statusText}</button>
+      <div className={`dwrap${state.motion.id === "rest" && entrance === "done" ? " lying" : ""}`}><span className="zz" aria-hidden="true">z z</span><button id="petbtn" data-pochi-hit="sprite" disabled={arriving} aria-busy={arriving} aria-label={arriving ? "ポチが走ってきています" : "ポチ：クリックで開始・メニュー、ダブルクリックで設定、ドラッグで移動"}
         onPointerDown={event => {
           if (event.button !== 0) return;
           if (clickTimer.current) clearTimeout(clickTimer.current);
@@ -205,7 +216,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
         if (event.detail !== 0 && drag.current?.moved) return;
         if (event.detail > 1) return;
         if (event.detail === 0) tap(); else clickTimer.current = setTimeout(tap, 550);
-      }} onDoubleClick={() => { if (drag.current?.moved) return; if (clickTimer.current) clearTimeout(clickTimer.current); openPanel("settings"); }}><PochiSprite motion={state.motion} reducedMotion={reduced} onComplete={actions.completeAnimation} /></button></div>
+      }} onDoubleClick={() => { if (drag.current?.moved) return; if (clickTimer.current) clearTimeout(clickTimer.current); openPanel("settings"); }}>{entrance !== "done" && <PochiArrival reducedMotion={reduced} leaving={entrance === "leaving"} onComplete={finishEntrance} />}<span className={`resident-dog${entrance === "leaving" || entrance === "done" ? " visible" : ""}`}><PochiSprite motion={state.motion} reducedMotion={reduced} onComplete={actions.completeAnimation} /></span></button></div>
     </div>
   </main>;
 }
