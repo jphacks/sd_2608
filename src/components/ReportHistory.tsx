@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AppViewActions, AppViewModel, ReportPanelState } from "../contracts/ui.js";
 import { ReportPanel } from "./ReportPanel.js";
+import { reportStatusLabels } from "../presentation/reportLabels.js";
 
 const reportId = (report: ReportPanelState) => report.phase === "closed" ? null
   : report.phase === "ready" ? report.report.id : report.reportId;
@@ -39,7 +40,7 @@ export function ReportHistory({ state, actions, busy, onRetry }: {
           const open = expanded !== report.id;
           setExpanded(open ? report.id : null);
           if (open) void actions.openReport(report.id);
-        }}>{new Date(report.createdAt).toLocaleString("ja-JP")} · {report.status}</summary>
+        }}>{new Date(report.createdAt).toLocaleString("ja-JP")} · {reportStatusLabels[report.status]}</summary>
         {expanded === report.id && content(report.id)}
       </details>
     </li>)}</ul>

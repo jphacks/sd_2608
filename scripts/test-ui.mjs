@@ -61,6 +61,22 @@ try {
       if (output && output !== "loading") break;
     }
     if (!output?.includes('"result": "PASS"')) throw new Error(`${page}: ${output ?? "ページが読み込めませんでした。"}`);
+    if (page === "pet-ui-smoke") {
+      await call("Runtime.evaluate", { expression: 'document.querySelector(".chip").click()' });
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const position = await call("Runtime.evaluate", { expression: '(() => { const r = document.querySelector(".quit-app").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()', returnByValue: true });
+      await call("Input.dispatchMouseEvent", { type: "mouseMoved", ...position.result.value });
+      const hover = await call("Runtime.evaluate", { expression: `(() => {
+        const button = document.querySelector(".quit-app"), style = getComputedStyle(button), rect = button.getBoundingClientRect();
+        const range = document.createRange(); range.selectNodeContents(button); const text = range.getBoundingClientRect();
+        return button.matches(":hover") && style.backgroundColor === "rgb(255, 246, 232)"
+          && Math.abs((rect.left + rect.right - text.left - text.right) / 2) < 1;
+      })()`, returnByValue: true });
+      if (!hover.result.value) throw new Error("終了ボタンのホバー背景が文字の中心と一致しません。");
+      const report = JSON.parse(output);
+      report.checks.push("終了ボタンを実際にホバーしても背景と文字が中央で揃う");
+      output = JSON.stringify(report, null, 2);
+    }
     console.log(`${page}: ${output}`);
   }
 } finally {
