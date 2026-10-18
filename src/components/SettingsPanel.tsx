@@ -15,13 +15,15 @@ export function SettingsPanel({ settings, disabled, onSave }: SettingsPanelProps
       expectedSettingsRevision: settings.revision,
       values: { reportMode: text("reportMode") === "ai" ? "ai" : "local", provider,
         excludedApps: text("excludedApps").split(/\r?\n/).map(app => app.trim()).filter(Boolean),
-        reducedMotion: data.get("reducedMotion") === "on", ocrEnabled: data.get("ocrEnabled") === "on" },
+        reducedMotion: data.get("reducedMotion") === "on", ocrEnabled: data.get("ocrEnabled") === "on",
+        notificationSound: text("notificationSound") === "system" ? "system" : text("notificationSound") === "none" ? "none" : "dog" },
       keyChange: keyKind === "replace" ? { kind: "replace", value: text("apiKey") } :
         keyKind === "remove" ? { kind: "remove" } : { kind: "keep" },
     }).finally(() => { const key = form.elements.namedItem("apiKey"); if (key instanceof HTMLInputElement) key.value = ""; });
   }}>
     <h2>設定</h2><p>作業の記録を停止すると、設定を変更できます。保存済みの API キーは表示しません。</p>
     <fieldset disabled={disabled}>
+      <label>通知音<select name="notificationSound" defaultValue={settings.notificationSound}><option value="dog">犬の鳴き声</option><option value="system">システム音</option><option value="none">音なし</option></select></label>
       <label>レポートの作成方法<select name="reportMode" defaultValue={settings.reportMode}><option value="local">端末内の記録</option><option value="ai">AI 要約</option></select></label>
       <label>API 形式<select name="provider" defaultValue={settings.provider?.kind ?? "openAiCompatible"}><option value="openAiCompatible">OpenAI 互換</option><option value="gemini">Gemini</option></select></label>
       <label>接続先<input name="endpoint" type="url" defaultValue={settings.provider?.endpoint ?? ""} placeholder="https://example.invalid/v1/chat/completions" /></label>

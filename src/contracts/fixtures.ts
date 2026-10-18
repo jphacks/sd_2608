@@ -33,7 +33,7 @@ export function createSnapshot(now = FIXTURE_NOW): AppSnapshot {
       consent: { activity: false, history: false, externalReport: false },
     },
     settings: {
-      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false, ocrEnabled: false,
+      reportMode: "local", provider: null, excludedApps: [], reducedMotion: false, ocrEnabled: false, notificationSound: "dog",
       revision: 0, hasApiKey: false,
     },
     presence: { value: "unknown", reason: "sensorUnavailable", faceMissingSince: null, awayDetectedAt: null },

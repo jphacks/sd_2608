@@ -1,4 +1,5 @@
 import type { AppGateway } from "../ports/AppGateway.js";
+import type { NotificationAudio } from "../ports/NotificationAudio.js";
 import { GatewayConnectionError } from "../ports/AppGateway.js";
 import type { ApiError, ApiResult, AppSnapshot, Id } from "../contracts/domain.js";
 import type { AppViewActions, AppViewModel, UiOperation } from "../contracts/ui.js";
@@ -27,8 +28,9 @@ export class AppController {
   private closing = false;
   private mutation = 0;
   private dismissedAdvanceNotice: string | null = null;
+  private soundedNotifications = new Set<string>();
 
-  constructor(private readonly gateway: AppGateway) {}
+  constructor(private readonly gateway: AppGateway, private readonly audio?: NotificationAudio) {}
   getState = (): AppViewModel => this.state;
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -74,10 +76,13 @@ export class AppController {
   }
   async dispose(): Promise<void> {
     this.epoch++; this.reportRead++; this.listRead++;
+    this.audio?.stop();
     this.publish({ advanceNotice: null });
     await this.gateway.dispose();
   }
   private resetRuntime(snapshot: AppSnapshot): void {
+    this.audio?.stop();
+    this.soundedNotifications.clear();
     this.mutation++;
     this.awaitingReturn = false;
     this.seenCompletion = snapshot.completionSeq;
@@ -146,6 +151,17 @@ export class AppController {
       else if (!this.reportQueue.includes(job.id)) this.reportQueue.push(job.id);
     }
     this.publish({ queuedReportCount: this.reportQueue.length });
+    const notificationKeys = [
+      ...(showNotice ? [`advance:${noticeKey}`] : []),
+      ...(reminder ? [`reminder:${reminder.id}`] : []),
+      ...completions.map(job => `completion:${job.completionSeq}`),
+    ];
+    const newNotification = notificationKeys.some(key => !this.soundedNotifications.has(key));
+    for (const key of notificationKeys) this.soundedNotifications.add(key);
+    if (previous?.settings.notificationSound !== snapshot.settings.notificationSound) this.audio?.stop();
+    // 初回取得・再接続・バックエンド再起動では、既存の通知を鳴らし直さない。
+    if (previous?.runtimeId === snapshot.runtimeId && newNotification)
+      this.audio?.play(snapshot.settings.notificationSound);
     this.pumpReportQueue();
     if (completions.length) void this.refreshReports();
   }

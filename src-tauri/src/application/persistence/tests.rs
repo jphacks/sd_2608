@@ -21,9 +21,48 @@ fn request(revision: u64, key: KeyChange) -> UpdateSettingsRequest {
             excluded_apps: vec!["private.exe".into()],
             reduced_motion: true,
             ocr_enabled: false,
+            notification_sound: NotificationSound::Dog,
         },
         key_change: key,
     }
+}
+#[test]
+fn notification_sound_defaults_for_legacy_settings_and_persists_all_choices() {
+    let mut request = request(0, KeyChange::Keep);
+    let mut legacy = serde_json::to_value(&request.values).unwrap();
+    legacy.as_object_mut().unwrap().remove("notificationSound");
+    assert_eq!(
+        serde_json::from_value::<SettingsInput>(legacy)
+            .unwrap()
+            .notification_sound,
+        NotificationSound::Dog
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let repository = Arc::new(FileRepository::new(directory.path().to_path_buf()));
+    let secrets = Arc::new(MemorySecretStore::default());
+    let mut store = Persistence::open(repository.clone(), secrets.clone(), 0);
+    assert_eq!(
+        store.settings_view().notification_sound,
+        NotificationSound::Dog
+    );
+    for (revision, sound) in [
+        NotificationSound::System,
+        NotificationSound::None,
+        NotificationSound::Dog,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        request.expected_settings_revision = n(revision as u64);
+        request.values.notification_sound = sound;
+        assert_eq!(store.update(&request).unwrap().notification_sound, sound);
+        store = Persistence::open(repository.clone(), secrets.clone(), 0);
+        assert_eq!(store.settings_view().notification_sound, sound);
+        assert!(store.warning().is_none());
+    }
+    let mut invalid = serde_json::to_value(&request.values).unwrap();
+    invalid["notificationSound"] = serde_json::json!("unknown");
+    assert!(serde_json::from_value::<SettingsInput>(invalid).is_err());
 }
 #[test]
 fn legacy_settings_default_ocr_off_and_the_toggle_round_trips() {

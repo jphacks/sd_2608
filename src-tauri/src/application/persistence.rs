@@ -155,6 +155,7 @@ impl Persistence {
                     excluded_apps: vec![],
                     reduced_motion: false,
                     ocr_enabled: false,
+                    notification_sound: initial.notification_sound,
                 },
                 secret_id: None,
             },
@@ -216,6 +217,7 @@ impl Persistence {
             excluded_apps: self.settings.values.excluded_apps.clone(),
             reduced_motion: self.settings.values.reduced_motion,
             ocr_enabled: self.settings.values.ocr_enabled,
+            notification_sound: self.settings.values.notification_sound,
             revision: self.settings.revision,
             has_api_key: self.settings.secret_id.is_some() && !self.secret_warning,
         }

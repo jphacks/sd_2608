@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>通知音設定の自動テスト</title>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { SettingsPanel } from "/src/components/SettingsPanel.tsx";
+import { createSnapshot } from "/src/contracts/fixtures.ts";
+const output = document.querySelector("#result"), root = createRoot(document.querySelector("#app"));
+const checks = [];
+let settings = createSnapshot().settings, disabled = false, saves = 0;
+const render = () => root.render(React.createElement(SettingsPanel, { key: settings.revision, settings, disabled, onSave: async request => {
+  settings = { ...settings, ...request.values, revision: settings.revision + 1 };
+  saves++; render();
+} }));
+const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const check = (value, label) => { if (!value) throw Error(label); checks.push(label); };
+try {
+  render(); await paint();
+  const select = () => document.querySelector('select[name="notificationSound"]');
+  check(select().value === "dog", "初期値は犬の鳴き声");
+  check([...select().options].map(option => option.text).join(",") === "犬の鳴き声,システム音,音なし", "通知音は3択");
+  for (const sound of ["system", "none", "dog"]) {
+    select().value = sound;
+    document.querySelector('button[type="submit"]').click(); await paint();
+    check(settings.notificationSound === sound && select().value === sound, `${sound}を保存して再表示`);
+  }
+  check(saves === 3, "保存処理を3回実行");
+  disabled = true; render(); await paint();
+  check(select().matches(":disabled"), "記録中は既存設定と同様に変更できない");
+  output.textContent = JSON.stringify({result: "PASS", checks}, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}`; }
+</script></html>
