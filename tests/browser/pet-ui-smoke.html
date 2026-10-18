@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>ポチのメニューとメッセージの自動テスト</title>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import PochiApp from "/src/pochi/PochiApp.tsx";
+import { AppController } from "/src/application/AppController.ts";
+import { MockGateway } from "/src/adapters/mock/MockGateway.ts";
+import { petManifest } from "/src/presentation/petManifest.ts";
+const gateway = new MockGateway(), controller = new AppController(gateway);
+const root = createRoot(document.querySelector("#app"));
+const output = document.querySelector("#result"), checks = [];
+let moves = 0;
+const actions = { ...controller.actions, moveWindow: async () => { moves++; } };
+const paint = async () => {
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+};
+const check = (condition, label) => { if (!condition) throw Error(label); checks.push(label); };
+const button = text => [...document.querySelectorAll(".bub button")].find(item => item.textContent.endsWith(text));
+const bubble = () => document.querySelector(".bub");
+const openMenu = async () => { document.querySelector(".chip").click(); await paint(); };
+controller.subscribe(() => root.render(React.createElement(PochiApp, {
+  state: controller.getState(), actions, petManifest, desktop: true,
+})));
+try {
+  await controller.connect(); await paint();
+  check(!document.querySelector(".gear"), "停止中の常設歯車はない");
+  const close = document.querySelector(".bubble-close"), style = getComputedStyle(close);
+  check(close.textContent === "×" && style.borderRadius === "50%" && style.backgroundColor === "rgb(235, 211, 182)", "メッセージ上部の✕は薄茶色の円");
+  check(close.getBoundingClientRect().bottom <= document.querySelector(".bub-body").getBoundingClientRect().top, "メッセージの上に独立した操作用の余白がある");
+  close.click(); await paint();
+  check(bubble().hidden, "開始前のメッセージを✕で閉じられる");
+  await openMenu();
+  const cards = [...document.querySelectorAll(".menu-card")], positions = cards.map(item => item.getBoundingClientRect());
+  check(cards.length === 4 && positions[0].top === positions[1].top && positions[2].top === positions[3].top && positions[0].top < positions[2].top,
+    "横長のメニューカードが2列×2行に並ぶ");
+  check(positions.every(rect => rect.width > rect.height), "各メニューカードは横長");
+  check(document.querySelector(".bub-header .gear") && !button("なんでもない") && !button("ウィンドウを移動") && !button("最新のレポートを見る"), "歯車はメニュー左上、不要な個別項目はない");
+  const quit = document.querySelector(".quit-app").getBoundingClientRect();
+  check(quit.right > positions[3].left && quit.top >= positions[3].bottom && getComputedStyle(document.querySelector(".quit-app")).fontSize === "11px", "終了はメニュー右下の小さなテキストボタン");
+  document.querySelector(".gear").click(); await paint();
+  check(!!document.querySelector(".settings-panel"), "メニューの歯車から設定が開く");
+  document.querySelector(".bubble-close").click(); await paint();
+  check(bubble().hidden, "設定も✕で閉じる");
+  await controller.actions.start({ profile: "demo", expectedSettingsRevision: 0, reportMode: "local",
+    consent: { activity: true, history: true, externalReport: false } }); await paint();
+  gateway.advanceBy(1_000); await paint();
+  const dog = document.querySelector("#petbtn"), timer = document.querySelector(".chip");
+  const dogRect = dog.getBoundingClientRect(), timerRect = timer.getBoundingClientRect();
+  check(timer.textContent.includes("00:00:01") && timerRect.top >= dogRect.bottom && Math.abs((timerRect.left + timerRect.right - dogRect.left - dogRect.right) / 2) < 1,
+    "作業中のタイマーは犬の真下中央に常時表示");
+  check(!document.querySelector(".bub time"), "メッセージ内にはタイマーを重複表示しない");
+  document.querySelector(".bubble-close").click(); await paint();
+  gateway.advanceBy(1_000); await paint();
+  check(bubble().hidden, "閉じたメッセージは毎秒の更新で再表示しない");
+  gateway.advanceBy(25_000); await paint();
+  check(!bubble().hidden && document.querySelector(".advance-notice"), "新しい休憩予告が来たら再表示");
+  document.querySelector(".bubble-close").click(); await paint();
+  check(!controller.getState().advanceNotice && gateway.getSnapshot().jobs.length === 0, "予告の✕はレポートを生成しない");
+  gateway.advanceBy(3_000); gateway.detectBoundary(); await paint();
+  check(!bubble().hidden && controller.getState().bubble, "次の休憩提案を表示");
+  document.querySelector(".bubble-close").click(); await paint();
+  check(!controller.getState().bubble && gateway.getSnapshot().jobs.length === 0, "休憩提案の✕は今は続けるとして扱う");
+  // capture API を差し替えて合成イベントでジェスチャーの分類だけを検証する。
+  dog.setPointerCapture = () => {}; dog.hasPointerCapture = () => false;
+  const pointer = (type, x, buttons = 1) => dog.dispatchEvent(new PointerEvent(type, {
+    bubbles: true, pointerId: 1, button: 0, buttons, screenX: x, screenY: 100,
+  }));
+  pointer("pointerdown", 100); pointer("pointermove", 103);
+  check(moves === 0, "微小な手ぶれはドラッグしない");
+  pointer("pointermove", 110); pointer("pointermove", 120); pointer("pointerup", 120, 0);
+  dog.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+  dog.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
+  await new Promise(resolve => setTimeout(resolve, 600)); await paint();
+  check(moves === 1 && bubble().hidden, "犬のドラッグは一度だけ移動を呼び、クリックや設定を誤発火しない");
+  dog.click(); await paint();
+  check(!bubble().hidden && document.querySelector(".menu-grid"), "ドラッグ後もキーボード相当のクリックでメニューを開ける");
+  gateway.loadScenario("multipleReports"); await paint();
+  await openMenu(); button("作業記録を見る").click(); await paint();
+  const history = document.querySelector(".report-history"), latestId = controller.getState().reportList[0].id;
+  check(history && controller.getState().report.phase === "ready" && controller.getState().report.report.id === latestId && history.querySelector(":scope > .report-panel"),
+    "作業記録を見ると最新レポートが上部に開く");
+  const rows = [...history.querySelectorAll(".report-list > li > details")];
+  check(rows.length === controller.getState().reportList.length && rows.every(row => !row.open), "全履歴カードは最初すべて閉じている");
+  const latestText = history.querySelector(":scope > .report-panel").textContent;
+  rows.at(-1).querySelector("summary").click(); await paint();
+  check(rows.at(-1).open && rows.at(-1).querySelector(".report-panel") && history.querySelector(":scope > .report-panel").textContent === latestText,
+    "過去の履歴を展開しても上部の最新レポートを保持");
+  rows[0].querySelector("summary").click(); await paint();
+  check(rows[0].open && !rows.at(-1).open, "別の履歴を開くと前のカードを閉じる");
+  rows[0].querySelector("summary").click(); await paint();
+  check(rows.every(row => !row.open), "履歴カードをもう一度押すと閉じる");
+  document.querySelector(".bubble-close").click(); await paint();
+  await openMenu(); button("作業記録を見る").click(); await paint();
+  check([...document.querySelectorAll(".report-list > li > details")].every(row => !row.open), "履歴画面を開き直すと再び全カードが閉じる");
+  output.textContent = JSON.stringify({ result: "PASS", checks, visualInspection: false, nativeDragVerified: false }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.stack}\nPassed: ${JSON.stringify(checks)}`; }
+addEventListener("pagehide", () => { void controller.dispose(); });
+</script></html>

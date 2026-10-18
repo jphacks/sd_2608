@@ -23,8 +23,10 @@ try {
   const hit = createPochiHitTest(doc);
   const center = element => { const r = element.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
   check(!hit({ x: 5, y: 5 }), "透明な背景は透過");
+  [...doc.querySelectorAll(".bs button")].find(button => button.textContent === "メニュー").click();
+  await until(() => doc.querySelector(".gear"));
   check(hit(center(doc.querySelector(".gear"))), "歯車は操作可能");
-  check(hit(center(doc.querySelector(".bub .bs button"))), "吹き出し内のボタンは操作可能");
+  check(hit(center(doc.querySelector(".menu-card"))), "吹き出し内のボタンは操作可能");
   const sprite = doc.querySelector(".dog");
   const atlas = new Image(); atlas.src = sprite.dataset.hitSrc; await atlas.decode();
   const canvas = document.createElement("canvas"); canvas.width = atlas.width; canvas.height = atlas.height;
