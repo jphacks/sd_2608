@@ -14,6 +14,22 @@ impl Rig {
     pub(super) fn with_provider(
         provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
     ) -> Self {
+        struct NoOcr;
+        impl crate::ports::ocr::ScreenOcr for NoOcr {
+            fn collect(
+                &self,
+                _: &[String],
+                _: &(dyn Fn() -> bool + Sync),
+            ) -> Result<crate::ports::ocr::OcrBatch, ()> {
+                Err(())
+            }
+        }
+        Self::with_provider_and_ocr(provider, Arc::new(NoOcr))
+    }
+    pub(super) fn with_provider_and_ocr(
+        provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+        ocr: Arc<dyn crate::ports::ocr::ScreenOcr>,
+    ) -> Self {
         struct TestSource;
         impl ActivitySource for TestSource {
             fn read(
@@ -24,11 +40,13 @@ impl Rig {
             }
         }
         let clock = Arc::new(FakeClock(AtomicU64::new(1_000_000)));
-        let service = AppService::with_report_provider(
+        let service = AppService::with_ocr_source(
             clock.clone(),
             Id::try_from("sitting-test".to_string()).unwrap(),
             Arc::new(TestSource),
             provider,
+            ocr,
+            Arc::default(),
         )
         .unwrap();
         {

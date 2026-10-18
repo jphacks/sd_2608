@@ -5,10 +5,16 @@ pub mod ipc;
 pub mod ports;
 
 use application::app_service::AppService;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     configure_with_service(builder, AppService::default()).setup(|app| {
+        let handle = app.handle().clone();
+        app.state::<AppService>()
+            .ocr_bridge
+            .attach(std::sync::Arc::new(move |request| {
+                handle.emit_to("main", "app://ocr-request", request).is_ok()
+            }));
         let root = app.path().app_local_data_dir()?;
         app.state::<AppService>()
             .initialize_storage(
@@ -39,6 +45,7 @@ pub fn configure_with_service<R: tauri::Runtime>(
             ipc::commands::report_get,
             ipc::commands::report_retry,
             ipc::commands::data_clear,
+            ipc::commands::ocr_complete,
         ])
         .on_page_load(|window, payload| {
             if window.label() == "main"

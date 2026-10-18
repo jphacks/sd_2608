@@ -31,6 +31,7 @@ pub(super) struct ReportWorker {
     generation: Arc<AtomicU64>,
     wake: Arc<Wake>,
     provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+    ocr: Arc<dyn crate::ports::ocr::ScreenOcr>,
     thread: Mutex<Option<JoinHandle<()>>>,
 }
 impl ReportWorker {
@@ -41,6 +42,7 @@ impl ReportWorker {
         publisher: Arc<Mutex<Option<SnapshotPublisher>>>,
         generation: Arc<AtomicU64>,
         provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+        ocr: Arc<dyn crate::ports::ocr::ScreenOcr>,
     ) -> Self {
         let wake = state.upgrade().unwrap().lock().unwrap().report_wake.clone();
         Self {
@@ -51,6 +53,7 @@ impl ReportWorker {
             generation,
             wake,
             provider,
+            ocr,
             thread: Mutex::new(None),
         }
     }
@@ -69,6 +72,7 @@ impl ReportWorker {
             self.wake.clone(),
         );
         let provider = self.provider.clone();
+        let ocr = self.ocr.clone();
         *thread = Some(
             std::thread::Builder::new()
                 .name("report-worker".into())
@@ -82,6 +86,7 @@ impl ReportWorker {
                             &generation,
                             &wake,
                             provider.as_ref(),
+                            ocr.as_ref(),
                         ) {
                             continue;
                         }
@@ -112,6 +117,7 @@ impl ReportWorker {
             &self.generation,
             &self.wake,
             self.provider.as_ref(),
+            self.ocr.as_ref(),
         )
     }
 }
@@ -203,12 +209,13 @@ fn process_next(
     generation: &Arc<AtomicU64>,
     wake: &Wake,
     provider: &dyn crate::ports::report_provider::ReportProvider,
+    ocr: &dyn crate::ports::ocr::ScreenOcr,
 ) -> bool {
     let Some(state) = weak.upgrade() else {
         return false;
     };
     let began = clock.read();
-    let (job, input, started) = {
+    let (job, mut input, started, ocr_salt) = {
         let Ok(mut state) = state.lock() else {
             return false;
         };
@@ -226,7 +233,12 @@ fn process_next(
         };
         project(&mut state);
         let _ = bump(&mut state, began.utc_ms);
-        (job, input, state.snapshot.clone())
+        (
+            job,
+            input,
+            state.snapshot.clone(),
+            state.fingerprinters[1].clone(),
+        )
     };
     publish(publisher, &started);
     let current = || {
@@ -257,8 +269,36 @@ fn process_next(
                 .lock()
                 .map_err(|_| internal())?
                 .read_secret(secret_id)?;
+            if input.settings.ocr_enabled && input.history.ocr.is_none() && current() {
+                let batch = ocr.collect(&input.settings.excluded_apps, &current);
+                if !current() {
+                    return Err(ApiError::new(
+                        ErrorCode::Cancelled,
+                        "レポート作成を取り消しました。",
+                    ));
+                }
+                input.history.ocr = Some(crate::application::ocr_context::context(
+                    batch,
+                    &input.history,
+                    clock.read().utc_ms,
+                    &ocr_salt,
+                ));
+                // 再試行でも同じ履歴と OCR を使用する。OS 取得中に状態ロックを持たない。
+                if let Ok(mut state) = state.lock() {
+                    if state.generation == job.generation {
+                        if let Some(frozen) = state.reports.inputs.get_mut(&job.id) {
+                            frozen.history.ocr = input.history.ocr.clone();
+                        }
+                    }
+                }
+            }
+            // オフにして再試行しても保存済みカードの固定履歴は変えない。
+            let mut provider_history = input.history.clone();
+            if !input.settings.ocr_enabled {
+                provider_history.ocr = None;
+            }
             provider
-                .generate(settings, &key, &input.history, &current)
+                .generate(settings, &key, &provider_history, &current)
                 .map(Some)
         })()
     } else {

@@ -3,6 +3,15 @@ use crate::application::app_service::{AppService, Command};
 use serde_json::Value;
 use tauri::{Manager, Runtime, State, WebviewWindow};
 
+#[tauri::command]
+pub fn ocr_complete<R: Runtime>(
+    window: WebviewWindow<R>,
+    service: State<'_, AppService>,
+    request: crate::application::ocr_bridge::OcrReply,
+) -> bool {
+    service.ocr_bridge.complete(window.label(), request)
+}
+
 fn dispatch<R: Runtime>(
     window: WebviewWindow<R>,
     service: State<'_, AppService>,

@@ -22,6 +22,11 @@ pub struct Segment {
     pub title: String,
     identity: MaskedWindow,
 }
+impl Segment {
+    pub fn window_key(&self) -> &WindowKey {
+        &self.identity.key
+    }
+}
 #[derive(Default)]
 pub struct History {
     pub session_id: Option<u64>,

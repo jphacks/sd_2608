@@ -14,3 +14,4 @@ const model = new URL("../public/models/blaze_face_short_range.tflite", import.m
 const hash = createHash("sha256").update(await readFile(model)).digest("hex");
 if (hash !== "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f") throw new Error("Unexpected face model checksum");
 console.log("Local MediaPipe WASM, license and verified face model are ready.");
+await import("./prepare-ocr-assets.mjs");

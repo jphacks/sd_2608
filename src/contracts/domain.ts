@@ -79,6 +79,7 @@ export type ActivitySegment = {
   endedAt: TimestampMs;
   appName: string;
   maskedTitle: string;
+  windowRef: Id | null; // 実行中だけ有効な不透明の照合値。PID/HWND は公開しない。
 };
 export type HistorySnapshot = {
   id: Id;
@@ -87,6 +88,13 @@ export type HistorySnapshot = {
   rangeStart: TimestampMs;
   rangeEnd: TimestampMs;
   segments: ActivitySegment[];
+  ocr: OcrContext | null;
+};
+export type OcrContext = {
+  capturedAt: TimestampMs;
+  windows: { appName: string; maskedTitle: string; text: string }[];
+  unavailableWindows: number;
+  unmatchedWindows: number;
 };
 export type ReportTrigger = "yes" | "away";
 export type JobStatus =
@@ -128,6 +136,7 @@ export type SettingsInput = {
   provider: ProviderSettings | null;
   excludedApps: string[];
   reducedMotion: boolean;
+  ocrEnabled: boolean;
 };
 export type SettingsView = SettingsInput & {
   revision: number;

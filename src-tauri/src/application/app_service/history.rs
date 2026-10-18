@@ -110,10 +110,15 @@ pub(super) fn freeze(
             .map_err(|_| internal())?,
         range_start: anchored(floor)?,
         range_end: anchored(end)?,
+        ocr: None,
         segments: segments
             .into_iter()
             .map(|segment| {
                 Ok(ActivitySegment {
+                    window_ref: Some(crate::application::ocr_context::window_ref(
+                        &state.fingerprinters[1],
+                        segment.window_key(),
+                    )),
                     id: Id::try_from(format!(
                         "segment-{}-{}",
                         session_id.as_str(),

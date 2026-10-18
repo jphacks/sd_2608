@@ -20,9 +20,32 @@ fn request(revision: u64, key: KeyChange) -> UpdateSettingsRequest {
             }),
             excluded_apps: vec!["private.exe".into()],
             reduced_motion: true,
+            ocr_enabled: false,
         },
         key_change: key,
     }
+}
+#[test]
+fn legacy_settings_default_ocr_off_and_the_toggle_round_trips() {
+    let mut request = request(0, KeyChange::Keep);
+    let mut legacy = serde_json::to_value(&request.values).unwrap();
+    legacy.as_object_mut().unwrap().remove("ocrEnabled");
+    assert!(
+        !serde_json::from_value::<SettingsInput>(legacy)
+            .unwrap()
+            .ocr_enabled
+    );
+    let repository = Arc::new(MemoryRepository::default());
+    let secrets = Arc::new(MemorySecretStore::default());
+    let mut store = Persistence::open(repository.clone(), secrets.clone(), 0);
+    assert!(!store.settings_view().ocr_enabled);
+    request.values.ocr_enabled = true;
+    store.update(&request).unwrap();
+    assert!(
+        Persistence::open(repository, secrets, 0)
+            .settings_view()
+            .ocr_enabled
+    );
 }
 pub(crate) fn report(serial: u64, now: u64) -> Report {
     let session = id(&format!("session-{serial}"));
@@ -40,6 +63,7 @@ pub(crate) fn report(serial: u64, now: u64) -> Report {
             captured_at: n(now),
             range_start: n(now - 1000),
             range_end: n(now),
+            ocr: None,
             segments: vec![ActivitySegment {
                 id: id(&format!("segment-{serial}")),
                 session_id: session,
@@ -47,6 +71,7 @@ pub(crate) fn report(serial: u64, now: u64) -> Report {
                 ended_at: n(now),
                 app_name: "editor.exe".into(),
                 masked_title: "dummy document [URL]".into(),
+                window_ref: None,
             }],
         },
         content: None,

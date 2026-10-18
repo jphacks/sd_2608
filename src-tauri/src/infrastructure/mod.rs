@@ -18,4 +18,5 @@ impl ActivitySource for NativeActivitySource {
     }
 }
 pub mod providers;
+pub mod screen_ocr;
 pub mod storage;

@@ -17,6 +17,13 @@ static MASKS: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
     .collect()
 });
 pub fn mask(text: &str) -> String {
+    masked(text, 200)
+}
+pub fn mask_ocr(text: &str) -> String {
+    // 改行を除去して単語や認証値を結合しない。
+    masked(&text.replace(['\r', '\n', '\t'], " "), 2_000)
+}
+fn masked(text: &str, limit: usize) -> String {
     // 切り詰めてからマスクすると長い認証値の末尾を残すため、上限までの全体を先に処理。
     let mut result: String = text
         .chars()
@@ -26,7 +33,7 @@ pub fn mask(text: &str) -> String {
     for (pattern, replacement) in MASKS.iter() {
         result = pattern.replace_all(&result, *replacement).into_owned();
     }
-    result.trim().chars().take(200).collect()
+    result.trim().chars().take(limit).collect()
 }
 #[cfg(test)]
 mod tests {
@@ -56,5 +63,9 @@ mod tests {
             "[認証情報]"
         );
         assert_eq!(mask(&"あ".repeat(300)).chars().count(), 200);
+        assert_eq!(
+            mask_ocr("first line\nsecond line\napi_key=secret\nnotes"),
+            "first line second line [認証情報] notes"
+        );
     }
 }

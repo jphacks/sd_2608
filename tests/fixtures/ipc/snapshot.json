@@ -22,7 +22,8 @@
     "excludedApps": [],
     "reducedMotion": false,
     "revision": 0,
-    "hasApiKey": false
+    "hasApiKey": false,
+    "ocrEnabled": false
   },
   "presence": {
     "value": "unknown",

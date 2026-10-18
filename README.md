@@ -13,12 +13,13 @@ npm run tauri dev
 - [表示とアニメーションの構成](docs/pochi-typescript.md)
 - [表示開発ガイド](docs/ui-development.md)
 - [機能仕様](docs/requirements.md) / [バックエンド計画](docs/backend-development-plan.md)
+- [全ウィンドウ OCR の仕様・検証](docs/ocr-summary.md)
 
 通常のブラウザー起動 (`npm run dev`) は Tauri 起動案内です。`npm run dev:mock` は実カメラ・PC 取得・外部送信をしない表示開発環境です。A の表示も本番と同じ AppController／AppGateway に接続しています。
 
 ## 単体アプリと短縮デモ
 
-Windows の MSVC / Rust / WebView2 Runtime が必要です。顔モデルと WASM は同梱し、起動時の CDN ダウンロードはありません。
+Windows の MSVC / Rust / WebView2 Runtime が必要です。顔モデルと日本語・英語の OCR モデル、WASM は同梱し、起動時の CDN ダウンロードはありません。OCR は設定の「ウィンドウの内容を OCR で取得」で切り替えます（初期値オフ）。AI 要約時に背面も含む取得可能な全ウィンドウを読み取り、作業履歴と一致したウィンドウの文字を補足に使います。
 
 ```powershell
 npm run desktop:build

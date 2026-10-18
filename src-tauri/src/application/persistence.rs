@@ -83,6 +83,23 @@ fn validate_report(report: &Report) -> bool {
     {
         return false;
     }
+    if let Some(ocr) = &history.ocr {
+        if ocr.windows.len() > 128
+            || ocr
+                .windows
+                .iter()
+                .map(|w| w.text.chars().count())
+                .sum::<usize>()
+                > crate::application::ocr_context::MAX_OCR_CHARS
+            || ocr.windows.iter().any(|w| {
+                !valid_text(&w.app_name, 200, true)
+                    || !valid_text(&w.masked_title, 200, true)
+                    || !valid_paragraph(&w.text, 2000)
+            })
+        {
+            return false;
+        }
+    }
     let mut end = history.range_start;
     let mut ids = HashSet::new();
     for segment in &history.segments {
@@ -137,6 +154,7 @@ impl Persistence {
                     provider: None,
                     excluded_apps: vec![],
                     reduced_motion: false,
+                    ocr_enabled: false,
                 },
                 secret_id: None,
             },
@@ -197,6 +215,7 @@ impl Persistence {
             provider: self.settings.values.provider.clone(),
             excluded_apps: self.settings.values.excluded_apps.clone(),
             reduced_motion: self.settings.values.reduced_motion,
+            ocr_enabled: self.settings.values.ocr_enabled,
             revision: self.settings.revision,
             has_api_key: self.settings.secret_id.is_some() && !self.secret_warning,
         }
@@ -329,9 +348,14 @@ impl Persistence {
             return Err(ApiError::validation());
         }
         if self.reports.iter().any(|old| {
+            // 固定した作業履歴は不変。OCR 未取得のカードへの初回補足だけを許可する。
+            let mut original_history = old.history.clone();
+            if original_history.ocr.is_none() {
+                original_history.ocr = report.history.ocr.clone();
+            }
             old.id == report.id
                 && (old.session_id != report.session_id
-                    || old.history != report.history
+                    || original_history != report.history
                     || old.created_at != report.created_at
                     || old.trigger != report.trigger
                     || old.updated_at > report.updated_at

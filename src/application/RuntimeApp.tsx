@@ -3,6 +3,7 @@ import { TauriGateway } from "../adapters/tauri/TauriGateway.js";
 import { nativeTransport } from "../adapters/tauri/nativeTransport.js";
 import { nativeWindow } from "../adapters/tauri/WindowAdapter.js";
 import { startNativeClickThrough } from "../adapters/tauri/startClickThrough.js";
+import { startBrowserOcr } from "../adapters/ocr/browserOcr.js";
 import PochiApp from "../pochi/PochiApp.js";
 import { petManifest } from "../presentation/petManifest.js";
 import { useAppController } from "./useAppController.js";
@@ -19,6 +20,7 @@ export default function RuntimeApp() {
   }, nativeWindow, manual), [manual]);
   const { state, actions } = useAppController(gateway);
   const clickThroughCleanup = useRef(Promise.resolve());
+  useEffect(() => startBrowserOcr(), []);
   useEffect(() => { void actions.placeWindow(); }, [actions]);
   useEffect(() => {
     // StrictMode / Fast Refresh では、前の制御による解除が完了してから再開する。

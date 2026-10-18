@@ -42,7 +42,7 @@ impl Drop for Process {
         }
     }
 }
-fn input_desktop_is_default() -> bool {
+pub(crate) fn input_desktop_is_default() -> bool {
     // SAFETY: 所有する出力バッファと RAII により閉じるデスクトップハンドルだけを使用。
     unsafe {
         let Ok(handle) = OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_READOBJECTS)
@@ -66,7 +66,7 @@ fn input_desktop_is_default() -> bool {
         String::from_utf16_lossy(&name[..end]).eq_ignore_ascii_case("default")
     }
 }
-fn app_name(process_id: u32) -> Option<String> {
+pub(crate) fn app_name(process_id: u32) -> Option<String> {
     // SAFETY: 所有ハンドルとサイズを明示した UTF-16 出力バッファを使用。
     unsafe {
         let process =

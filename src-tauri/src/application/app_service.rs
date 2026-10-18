@@ -71,6 +71,7 @@ struct State {
 }
 type SnapshotPublisher = Arc<dyn Fn(&AppSnapshot) + Send + Sync>;
 pub struct AppService {
+    pub ocr_bridge: Arc<super::ocr_bridge::OcrBridge>,
     state: Arc<Mutex<State>>,
     clock: Arc<dyn Clock>,
     monitor: ActivityMonitor,
@@ -156,6 +157,26 @@ impl AppService {
         source: Arc<dyn ActivitySource>,
         provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
     ) -> Result<Self, ApiError> {
+        let bridge = Arc::new(super::ocr_bridge::OcrBridge::default());
+        Self::with_ocr_source(
+            clock,
+            runtime_id,
+            source,
+            provider,
+            Arc::new(crate::infrastructure::screen_ocr::NativeScreenOcr(
+                bridge.clone(),
+            )),
+            bridge,
+        )
+    }
+    pub fn with_ocr_source(
+        clock: Arc<dyn Clock>,
+        runtime_id: Id,
+        source: Arc<dyn ActivitySource>,
+        provider: Arc<dyn crate::ports::report_provider::ReportProvider>,
+        ocr: Arc<dyn crate::ports::ocr::ScreenOcr>,
+        bridge: Arc<super::ocr_bridge::OcrBridge>,
+    ) -> Result<Self, ApiError> {
         let now = SafeInt::try_from(clock.read().utc_ms).map_err(|_| internal())?;
         let state = Arc::new(Mutex::new(State {
             snapshot: AppSnapshot::initial(runtime_id, now),
@@ -240,8 +261,10 @@ impl AppService {
             publisher.clone(),
             generation.clone(),
             provider,
+            ocr,
         );
         Ok(Self {
+            ocr_bridge: bridge,
             state,
             clock,
             monitor,

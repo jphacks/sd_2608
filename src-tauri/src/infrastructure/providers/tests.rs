@@ -83,6 +83,39 @@ fn key() -> Secret {
 }
 
 #[test]
+fn screen_ocr_is_sent_as_textual_observations_without_window_handles_or_images() {
+    let mut frozen = history();
+    frozen.ocr = Some(serde_json::from_value(json!({"capturedAt":2500,"windows":[{"appName":"editor.exe","maskedTitle":"document","text":"OCR observation"}],"unavailableWindows":1,"unmatchedWindows":2})).unwrap());
+    let (base, rx, worker) = serve(
+        response(
+            200,
+            &envelope(ProviderKind::OpenAiCompatible, content()).to_string(),
+        ),
+        Duration::ZERO,
+    );
+    HttpReportProvider::default()
+        .generate(
+            &settings(ProviderKind::OpenAiCompatible, base),
+            &key(),
+            &frozen,
+            &|| true,
+        )
+        .unwrap();
+    let request = rx.recv().unwrap();
+    let (_, body) = request.split_once("\r\n\r\n").unwrap();
+    let payload: Value = serde_json::from_str(body).unwrap();
+    let observed: Value =
+        serde_json::from_str(payload["messages"][1]["content"].as_str().unwrap()).unwrap();
+    assert_eq!(
+        observed["screenOcr"]["windows"][0]["text"],
+        "OCR observation"
+    );
+    for forbidden in ["windowRef", "windowId", "processId", "data:image", "base64"] {
+        assert!(!body.contains(forbidden));
+    }
+    worker.join().unwrap();
+}
+#[test]
 fn both_protocols_send_only_the_frozen_observations_and_use_auth_headers() {
     for kind in [ProviderKind::Gemini, ProviderKind::OpenAiCompatible] {
         let (base, rx, worker) = serve(
