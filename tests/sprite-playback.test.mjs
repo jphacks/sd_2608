@@ -69,7 +69,7 @@ test("非表示の時間を再生時間に加算せず、復帰後は途中の�
   assert.equal(h.paints.at(-1).frame, frame); assert.equal(h.callbacks.size, 0);
   h.player.setHidden(false); h.step(16);
   assert.equal(h.paints.at(-1).frame, frame); assert.deepEqual(h.completed, []);
-  h.step(100); assert.ok(h.paints.at(-1).frame > frame);
+  for (let i = 0; i < 6; i++) h.step(16); assert.ok(h.paints.at(-1).frame > frame);
 });
 
 test("読込中に非表示になった場合も、復帰直後に動作を飛ばさない", async () => {
@@ -83,7 +83,7 @@ test("読込中に非表示になった場合も、復帰直後に動作を飛�
 test("前景で処理が詰まっても一度に起き上がり全体を飛ばさない", async () => {
   const h = harness(); await h.play("rest_to_sit"); h.step(10_000);
   assert.equal(h.paints.at(-1).frame, 0); assert.deepEqual(h.completed, []);
-  h.step(100); assert.equal(h.paints.at(-1).frame, 1);
+  for (let i = 0; i < 3; i++) h.step(100); assert.equal(h.paints.at(-1).frame, 1);
 });
 
 test("待機・休憩は繰り返し、同じ姿勢への更新で再生トークンを増やさない", async () => {
