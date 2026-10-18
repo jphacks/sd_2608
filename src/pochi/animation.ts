@@ -21,6 +21,7 @@ export type Motion = { id: ActionId; token: number; queue: ActionId[]; after: Po
 export const initialMotion = (): Motion => ({ id: "idle", token: 0, queue: [], after: "idle" });
 /** Finish an in-flight pose transition before reversing it; other short actions can be interrupted. */
 export function moveTo(current: Motion, pose: Pose, action?: ActionId): Motion {
+  if (!action && current.id === pose && current.queue.length === 0 && current.after === pose) return current;
   const tail = action ? [action] : [];
   if (pose === "rest") {
     if (current.id === "rest_to_sit") return { ...current, queue: ["sit_to_rest"], after: "rest" };
@@ -33,6 +34,6 @@ export function moveTo(current: Motion, pose: Pose, action?: ActionId): Motion {
   return { id: sequence[0] ?? "idle", token: current.token + 1, queue: sequence.slice(1), after: "idle" };
 }
 export function finishMotion(current: Motion, token: number): Motion {
-  if (current.token !== token) return current;
+  if (current.token !== token || animationSpec(current.id).loop) return current;
   return { ...current, id: current.queue[0] ?? current.after, queue: current.queue.slice(1), token: current.token + 1 };
 }
