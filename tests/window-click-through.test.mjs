@@ -120,3 +120,12 @@ test("背景・非表示 UI は透過し、表示中の操作領域と画像の�
     if (originalImage === undefined) delete globalThis.Image; else globalThis.Image = originalImage;
   }
 });
+
+test("接地位置を補正した現在の絵と同じ画素でクリック判定する", () => {
+  const rect = { left: 0, top: 0, width: 512, height: 512 };
+  assert.deepEqual(spritePixel({ x: 256, y: 256 }, rect, 2048, 3584, 4, 7, 25, 3), { x: 768, y: 3325 });
+  assert.deepEqual(spritePixel({ x: 256, y: 256 }, rect, 2048, 3584, 4, 7, 25, -1), { x: 768, y: 3329 });
+  assert.equal(spritePixel({ x: 100, y: 1 }, rect, 512, 512, 1, 1, 0, 3), null);
+  assert.equal(spritePixel({ x: 100, y: 511 }, rect, 512, 512, 1, 1, 0, -1), null);
+  assert.equal(spritePixel({ x: 100, y: 512 }, rect, 512, 512, 1, 1, 0, 3), null);
+});

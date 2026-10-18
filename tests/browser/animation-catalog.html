@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><title>ポチ・全アニメーション確認</title>
+<style>
+body { font: 15px/1.6 sans-serif; background:#fff6e8; color:#4a2c1e; margin:24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:20px; }
+.card { background:#fffdf8; padding:16px; border:1px solid #ebd3b6; border-radius:20px; }
+.card h2 { font-size:18px; margin:0; }
+.stage { height:240px; position:relative; overflow:visible; background:repeating-conic-gradient(#eee 0% 25%,white 0% 50%) 0/24px 24px; }
+.stage .pochi-app { position:absolute; }
+.stage .pochi-app .pet { right:50%; margin-right:-85px; bottom:10px; }
+button { border:1px solid #ebd3b6; border-radius:10px; padding:8px 16px; background:#fff6e8; color:#4a2c1e; cursor:pointer; }
+.dark .stage { background:#30261f; }
+p { max-width:900px; } .frame { font-variant-numeric:tabular-nums; }
+</style>
+<h1>ポチ・全アニメーション確認</h1>
+<p>承認済みの全9動作を、アプリと同じ canvas・再生時計で表示します。待機と休憩はループし、それ以外は最後のポーズで止まります。表示の確認ページなので、カメラや作業記録は開始しません。</p>
+<button id="background">背景を切り替える</button> <button id="replay">すべて再生し直す</button>
+<p><a href="/tests/browser/animation-stability-smoke.html">自動の描画チェック</a> · <a href="/tests/browser/startup-smoke.html">入場・設定への接続チェック</a></p>
+<div id="app"></div>
+<script type="module">
+import React, { useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { PochiSprite } from "/src/pochi/PochiSprite.tsx";
+import { PochiArrival } from "/src/pochi/PochiArrival.tsx";
+import { animationSpec } from "/src/pochi/animation.ts";
+import "/src/pochi/pochi.css";
+const actions = [["arrival","走り込んで伏せる"],["idle","待機・まばたき"],["reminder","休憩のお知らせ"],
+  ["rest","伏せて休憩"],["record","作業を記録"],["welcome","おかえり・まばたき"],
+  ["turn_sit","振り向いて座る"],["rest_to_sit","伏せから起きる"],["sit_to_rest","座りから伏せる"]];
+function Card({ id, label, cycle }) {
+  const [token, setToken] = useState(0), [done, setDone] = useState(false);
+  useEffect(()=>setDone(false),[cycle]);
+  const isArrival = id === "arrival", spec = isArrival ? { count:107, durations:[4280], loop:false } : animationSpec(id);
+  const motion = { id, token:cycle*1000+token, queue:[], after:id === "rest" || id === "sit_to_rest" ? "rest" : "idle" };
+  return React.createElement("section",{className:"card"},
+    React.createElement("h2",{},label), React.createElement("p",{className:"frame"},`${spec.count}コマ · ${spec.durations.reduce((a,b)=>a+b,0)}ms · ${spec.loop ? "ループ" : done ? "完了" : "再生中"}`),
+    React.createElement("div",{className:"stage"},React.createElement("div",{className:"pochi-app"},React.createElement("div",{className:"pet"},React.createElement("div",{className:"dwrap"},
+      isArrival ? React.createElement(PochiArrival,{key:motion.token,reducedMotion:false,leaving:false,onComplete:()=>setDone(true)})
+        : React.createElement(PochiSprite,{motion,reducedMotion:false,onComplete:()=>setDone(true)}))))),
+    React.createElement("button",{onClick:()=>{setDone(false);setToken(value=>value+1);}},"もう一度再生"));
+}
+const root=createRoot(document.querySelector("#app")); let cycle=0;
+const render=()=>root.render(React.createElement("div",{className:"grid"},actions.map(([id,label])=>React.createElement(Card,{key:id,id,label,cycle}))));
+render(); document.querySelector("#background").onclick=()=>document.body.classList.toggle("dark");
+document.querySelector("#replay").onclick=()=>{cycle++;render();};
+</script></html>

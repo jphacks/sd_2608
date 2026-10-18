@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>ポチのアニメーション安定性</title>
+<style>
+body { font-family: sans-serif; padding: 24px; color: #4a2c1e; background: #fff6e8; }
+.stage { width: 340px; height: 210px; position: relative; background: repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 0 / 24px 24px; }
+.pochi-app .pet { right: 12px; bottom: 0; }
+.stage > .pochi-app { position: absolute; }
+button { margin: 8px 4px 8px 0; }
+</style>
+<h1>ポチのアニメーション安定性</h1>
+<p>全動作を順番に再生し、同じ canvas・表示位置・透明度を維持することを検証します。</p>
+<pre id="result" role="status">loading</pre><div id="app" class="stage"></div>
+<div id="controls"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { PochiSprite } from "/src/pochi/PochiSprite.tsx";
+import { animationSpec } from "/src/pochi/animation.ts";
+import "/src/pochi/pochi.css";
+const root = createRoot(document.querySelector("#app")), output = document.querySelector("#result");
+let motion = { id: "idle", token: 0, queue: [], after: "idle" }, reduced = false, finish = null;
+const checks = [], completed = [], check = (value, label) => { if (!value) throw Error(label); checks.push(label); };
+const render = () => root.render(React.createElement("main", { className: "pochi-app" },
+  React.createElement("div", { className: "pet" }, React.createElement("div", { className: "dwrap" },
+    React.createElement("button", { id: "petbtn" }, React.createElement(PochiSprite, {
+      motion, reducedMotion: reduced, onComplete: token => { completed.push(token); if (token === motion.token) finish?.(); },
+    }))))));
+const until = async (predicate, timeout = 12_000) => {
+  const end = performance.now() + timeout;
+  while (!predicate()) { if (performance.now() > end) throw Error("timeout"); await new Promise(resolve => setTimeout(resolve, 16)); }
+};
+const show = async (id, still = false) => {
+  motion = { id, token: motion.token + 1, queue: [], after: id === "rest" || id === "sit_to_rest" ? "rest" : "idle" };
+  reduced = still; render();
+  const src = still ? `/pet/pochi/${motion.after}-poster.png` : animationSpec(id).src;
+  await until(() => document.querySelector(".dog")?.dataset.hitSrc === src);
+};
+try {
+  render(); await until(() => document.querySelector(".dog")?.dataset.hitSrc?.endsWith("idle.png"));
+  const surface = document.querySelector(".dog"), rect = surface.getBoundingClientRect();
+  const observer = new MutationObserver(() => { if (document.querySelector(".dog") !== surface) throw Error("canvas replaced"); });
+  observer.observe(document.querySelector("#app"), { childList: true, subtree: true });
+  let samples = 0, blank = 0, shifted = 0, sampling = true;
+  const sample = () => {
+    if (!sampling) return;
+    const pixels = surface.getContext("2d").getImageData(0, 0, 512, 512).data;
+    let opaque = 0; for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) opaque++;
+    if (!opaque) blank++;
+    const next = surface.getBoundingClientRect();
+    if (next.left !== rect.left || next.top !== rect.top || next.width !== 170 || next.height !== 170) shifted++;
+    samples++; requestAnimationFrame(sample);
+  };
+  requestAnimationFrame(sample);
+  // 親の時計更新とコールバック再作成があっても動作を巻き戻さない。
+  const rerenders = setInterval(render, 100);
+  for (const id of ["welcome", "reminder", "record", "turn_sit", "sit_to_rest", "rest", "rest_to_sit", "idle"]) {
+    await show(id);
+    if (animationSpec(id).loop) await new Promise(resolve => setTimeout(resolve, animationSpec(id).durations.reduce((a,b)=>a+b,0)*2));
+    else await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(Error(`${id}: completion timeout`)), 12_000);
+      finish = () => { clearTimeout(timer); finish = null; resolve(); };
+    });
+    check(document.querySelector(".dog") === surface, `${id}: canvas を保持`);
+  }
+  sampling = false; observer.disconnect(); clearInterval(rerenders);
+  check(samples > 100 && blank === 0, `${samples} 回の描画で空白フレームなし`);
+  check(shifted === 0, "切替中も表示位置・170px の表示寸法を保持");
+  check(completed.length === 6 && new Set(completed).size === 6, "1回動作6件の完了は各1回のみ");
+  check(surface.width === 512 && surface.height === 512, "全動作の描画解像度は512pxで一定");
+  check(surface.getContext("2d").getImageData(0, 0, 1, 1).data[3] === 0, "背景の透明を保持");
+  await show("rest", true); await show("idle");
+  check(document.querySelector(".dog") === surface, "動きを減らす設定でも canvas を交換しない");
+  // クリック透過は別の window-click-through-smoke.html と実機でも確認する。
+  output.textContent = JSON.stringify({ result: "PASS", checks, visualInspection: false, nativeVerified: false }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.stack}\nPassed: ${JSON.stringify(checks)}`; }
+for (const [id, label] of [["idle", "待機"], ["welcome", "おかえり"], ["sit_to_rest", "伏せる"], ["rest", "休憩"], ["rest_to_sit", "起きる"], ["turn_sit", "振り向く"]]) {
+  const button = document.createElement("button"); button.textContent = label;
+  button.onclick = () => { void show(id); }; document.querySelector("#controls").append(button);
+}
+</script></html>
