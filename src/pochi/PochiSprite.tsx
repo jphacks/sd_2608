@@ -1,41 +1,58 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Motion } from "./animation.js";
-import { animationSpec, frameAt } from "./animation.js";
-import { gifForMotion } from "./gifPresentation.js";
+import { SpritePlayback, spriteSize } from "./spritePlayback.js";
+
+const images = new Map<string, Promise<HTMLImageElement>>();
+function decodedImage(src: string): Promise<HTMLImageElement> {
+  const cached = images.get(src);
+  if (cached) return cached;
+  const pending = new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const timer = setTimeout(() => fail(), 10_000);
+    const cleanup = () => { clearTimeout(timer); image.onload = null; image.onerror = null; };
+    const fail = () => { cleanup(); reject(new Error(`ポチの画像を読み込めません: ${src}`)); };
+    image.onerror = fail;
+    image.onload = () => {
+      // decode 完了後だけ切り替える。src の変更による空白フレームを作らない。
+      void image.decode().then(() => { cleanup(); resolve(image); }, fail);
+    };
+    image.src = src;
+  });
+  images.set(src, pending);
+  void pending.catch(() => { if (images.get(src) === pending) images.delete(src); });
+  return pending;
+}
+
 export function PochiSprite({ motion, reducedMotion, onComplete }: {
   motion: Motion; reducedMotion: boolean; onComplete(token: number): void;
 }) {
-  const [frame, setFrame] = useState(0);
-  const [failed, setFailed] = useState(false);
-  const spec = animationSpec(motion.id);
-  const gif = gifForMotion(motion.id);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const playback = useRef<SpritePlayback<HTMLImageElement> | null>(null);
+  const complete = useRef(onComplete);
+  useLayoutEffect(() => { complete.current = onComplete; }, [onComplete]);
   useEffect(() => {
-    let cancelled = false, handle = 0;
-    let start = 0, started = false;
-    setFrame(reducedMotion ? spec.frames[spec.count - 1] : spec.frames[0]); setFailed(false);
-    const run = (now: number) => {
-      if (cancelled) return;
-      const step = frameAt(motion.id, now - start); setFrame(step.frame);
-      if (step.done || reducedMotion) {
-        if (!spec.loop || motion.id === "sit_to_rest") onComplete(motion.token);
-      } else handle = requestAnimationFrame(run);
-    };
-    const begin = () => { if (cancelled || started) return; started = true; start = performance.now(); handle = requestAnimationFrame(run); };
-    const image = new Image(); image.onload = begin;
-    image.onerror = () => { if (!cancelled) { setFailed(true); begin(); } };
-    image.src = gif ?? spec.src;
-    if (image.complete && image.naturalWidth > 0) begin();
-    return () => { cancelled = true; cancelAnimationFrame(handle); image.onerror = null; image.onload = null; };
-    // A playback token identifies one uninterrupted segment of a sequence.
-  }, [motion.id, motion.token, reducedMotion, onComplete]);
-  const poster = motion.id === "rest" || motion.id === "sit_to_rest" ? "rest" : "idle";
-  // GIF の内蔵 loop は業務遷移に使わず、上の main の frameAt と再生トークンで終了する。
-  // 伏せへの逆再生は GIF を代用せず、従来の PNG アトラスを使う。
-  const hit = { "data-hit-src": spec.src, "data-hit-columns": spec.columns, "data-hit-rows": spec.rows, "data-hit-frame": frame };
-  return failed || reducedMotion ? <img className="dog" src={`/pet/pochi/${poster}-poster.png`} data-hit-src={`/pet/pochi/${poster}-poster.png`} alt="ポチ" draggable={false} />
-    : gif ? <img key={motion.token} className="dog" src={gif} {...hit} alt="ポチ" draggable={false} />
-    : <span className="dog" {...hit} role="img" aria-label="ポチ" style={{
-      backgroundImage: `url(${spec.src})`, backgroundSize: `${spec.columns * 100}% ${spec.rows * 100}%`,
-      backgroundPosition: `${frame % spec.columns / (spec.columns - 1) * 100}% ${Math.floor(frame / spec.columns) / (spec.rows - 1) * 100}%`,
-    }} />;
+    const surface = canvas.current!, context = surface.getContext("2d");
+    if (!context) return;
+    const player = new SpritePlayback<HTMLImageElement>({
+      load: decodedImage, now: () => performance.now(),
+      request: callback => requestAnimationFrame(callback), cancel: handle => cancelAnimationFrame(handle),
+      complete: token => complete.current(token),
+      paint: (image, frame) => {
+        const x = frame.frame % frame.columns * spriteSize;
+        const y = Math.floor(frame.frame / frame.columns) * spriteSize;
+        // 同じ canvas へ同期的に描画。動作変更時も要素と解像度を維持する。
+        context.clearRect(0, 0, spriteSize, spriteSize);
+        context.drawImage(image, x, y, spriteSize, spriteSize, 0, frame.offsetY, spriteSize, spriteSize);
+        Object.assign(surface.dataset, { hitSrc: frame.src, hitColumns: String(frame.columns),
+          hitRows: String(frame.rows), hitFrame: String(frame.frame), hitOffsetY: String(frame.offsetY) });
+      },
+    });
+    playback.current = player;
+    const visibility = () => player.setHidden(document.hidden);
+    visibility();
+    document.addEventListener("visibilitychange", visibility);
+    return () => { document.removeEventListener("visibilitychange", visibility); player.dispose(); playback.current = null; };
+  }, []);
+  useEffect(() => { playback.current?.setMotion(motion, reducedMotion); }, [motion, reducedMotion]);
+  return <canvas ref={canvas} className="dog" width={spriteSize} height={spriteSize} role="img" aria-label="ポチ">ポチ</canvas>;
 }
