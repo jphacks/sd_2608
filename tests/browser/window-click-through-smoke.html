@@ -38,8 +38,8 @@ try {
     for (let y = 15; y < 160; y += 10) for (let x = 15; x < 160; x += 10) {
       const point = { x: rect.left + x, y: rect.top + y };
       const pixel = spritePixel(point, rect, atlas.width, atlas.height,
-        Number(sprite.dataset.hitColumns), Number(sprite.dataset.hitRows), Number(sprite.dataset.hitFrame));
-      const visible = pixels[(pixel.y * atlas.width + pixel.x) * 4 + 3] !== 0;
+        Number(sprite.dataset.hitColumns), Number(sprite.dataset.hitRows), Number(sprite.dataset.hitFrame), Number(sprite.dataset.hitOffsetY ?? 0));
+      const visible = !!pixel && pixels[(pixel.y * atlas.width + pixel.x) * 4 + 3] !== 0;
       if (hit(point) !== visible) return null;
       if (visible) opaque++; else transparent++;
     }
