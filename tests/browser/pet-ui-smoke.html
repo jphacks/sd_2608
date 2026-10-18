@@ -28,6 +28,11 @@ controller.subscribe(() => root.render(React.createElement(PochiApp, {
 })));
 try {
   await controller.connect(); await paint();
+  const entranceDeadline = performance.now() + 10_000;
+  while (document.querySelector('.pochi-app')?.dataset.entrance !== 'done') {
+    if (performance.now() > entranceDeadline) throw Error('起動アニメーションが終了しません');
+    await paint();
+  }
   check(!document.querySelector(".gear"), "停止中の常設歯車はない");
   const close = document.querySelector(".bubble-close"), style = getComputedStyle(close);
   check(close.textContent === "×" && style.borderRadius === "50%" && style.backgroundColor === "rgb(243, 228, 209)" && style.width === "28px", "✕を28pxの淡い薄茶色の円に小さくする");

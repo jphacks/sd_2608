@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja"><meta charset="UTF-8"><title>ポチの起動アニメーション確認</title>
+<pre id="result" role="status">loading</pre><div id="app"></div>
+<script type="module">
+import React from "react";
+import { createRoot } from "react-dom/client";
+import PochiApp from "/src/pochi/PochiApp.tsx";
+import { AppController } from "/src/application/AppController.ts";
+import { MockGateway } from "/src/adapters/mock/MockGateway.ts";
+import { petManifest } from "/src/presentation/petManifest.ts";
+const root = createRoot(document.querySelector("#app"));
+const gateway = new MockGateway(), controller = new AppController(gateway);
+const checks = [], output = document.querySelector("#result");
+const paint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+const check = (ok, label) => { if (!ok) throw Error(label); checks.push(label); };
+const until = async predicate => {
+  const deadline = performance.now() + 12_000;
+  while (!predicate()) { if (performance.now() > deadline) throw Error("timeout"); await new Promise(resolve => setTimeout(resolve, 40)); }
+};
+let reduced = false;
+const render = () => {
+  const state = controller.getState();
+  const snapshot = reduced && state.snapshot ? { ...state.snapshot, settings: { ...state.snapshot.settings, reducedMotion: true } } : state.snapshot;
+  root.render(React.createElement(React.StrictMode, {}, React.createElement(PochiApp, {
+    key: String(reduced), state: { ...state, snapshot }, actions: controller.actions, petManifest, desktop: true,
+  })));
+};
+controller.subscribe(render);
+try {
+  await controller.connect(); await paint();
+  check(document.querySelector(".arrival-dog")?.getAttribute("src").endsWith("run-in-prone.png"), "承認済みAPNGで起動する");
+  check(document.querySelector("#petbtn").disabled, "入場中のクリック・ドラッグを待機する");
+  check(document.querySelector(".bub").getAttribute("aria-hidden") === "true", "通常の案内を入場後まで待機する");
+  const image = document.querySelector(".arrival-dog"); gateway.advanceBy(1_000); await paint();
+  check(document.querySelector(".arrival-dog") === image, "snapshotの更新で入場画像を再作成しない");
+  await until(() => document.querySelector(".pochi-app")?.dataset.entrance === "done");
+  check(!document.querySelector(".arrival-dog") && !document.querySelector("#petbtn").disabled, "再生終了後に通常のポチへ接続する");
+  check(controller.getState().motion.id === "rest", "停止中は伏せ待機へ接続する");
+  const unchanged = controller.getState().snapshot;
+  check(unchanged.runtime.phase === "stopped" && unchanged.jobs.length === 0, "起動演出は監視開始やレポート生成をしない");
+  document.querySelector("#petbtn").click(); await paint();
+  check(document.querySelector('[aria-label="作業の記録を開始"]') && !document.querySelector(".arrival-dog"), "次のクリックで開始画面へ進み、入場は繰り返さない");
+  await controller.actions.reconnect(); await paint();
+  check(document.querySelector(".pochi-app").dataset.entrance === "done", "再接続では入場を繰り返さない");
+  reduced = true; render(); await paint();
+  await until(() => document.querySelector(".pochi-app")?.dataset.entrance === "done");
+  check(!document.querySelector('img[src$="run-in-prone.png"]'), "動きを減らす設定では走行の再生を省略する");
+  output.textContent = JSON.stringify({ result: "PASS", checks }, null, 2);
+} catch (error) { output.textContent = `FAIL: ${error.message}`; }
+</script></html>
