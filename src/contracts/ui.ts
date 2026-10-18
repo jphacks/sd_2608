@@ -28,6 +28,7 @@ export type AppViewModel = {
 };
 export interface AppViewActions {
   completeAnimation(token: number): void;
+  setSettingsOpen(open: boolean): void;
   turn(): void;
   moveWindow(): Promise<void>;
   placeWindow(): Promise<void>;
