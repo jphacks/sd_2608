@@ -63,7 +63,8 @@ const job = object({ id, sessionId: id, trigger: oneOf("yes", "away"), requested
   status: oneOf("scheduled", "queued", "running", "ready", "failed", "cancelled"), attempt: integer, completionSeq: nullable(integer) });
 export const snapshotDecoder: Decoder<AppSnapshot> = object({
   apiVersion: literal(1), runtimeId: id, revision: integer, emittedAt: integer, runtime, settings, presence,
-  session: nullable(session), reminder: nullable(reminder), jobs: array(job), completionSeq: integer, warning: nullable(errorDecoder),
+  session: nullable(session), reminder: nullable(reminder), advanceNotice: nullable(object({ sessionId: id, remainingMs: integer })),
+  jobs: array(job), completionSeq: integer, warning: nullable(errorDecoder),
 });
 const segment = object({ id, sessionId: id, startedAt: integer, endedAt: integer, appName: string, maskedTitle: string });
 const history = object({ id, sessionId: id, capturedAt: integer, rangeStart: integer, rangeEnd: integer, segments: array(segment) });

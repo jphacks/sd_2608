@@ -37,6 +37,11 @@ export class MockGateway implements AppGateway {
   private id(prefix: string): Id { return `mock-${prefix}-${++this.serial}`; }
   private unit(): number { return this.snapshot.runtime.profile === "demo" ? 1_000 : MINUTE; }
   private emit(): void {
+    const { session, runtime, presence } = this.snapshot;
+    const remaining = 30 * this.unit() - (session?.elapsedMs ?? 0);
+    this.snapshot.advanceNotice = runtime.phase === "running" && presence.value === "present"
+      && session?.endedAt === null && remaining > 0 && remaining <= 3 * this.unit()
+      ? { sessionId: session.id, remainingMs: remaining } : null;
     this.snapshot.revision++;
     this.snapshot.emittedAt = this.now;
     for (const listener of this.listeners) listener(copy(this.snapshot));
@@ -271,7 +276,7 @@ export class MockGateway implements AppGateway {
         camera: "running", activity: "running", effectiveReportMode: "ai",
         consent: { activity: true, history: true, externalReport: true } };
       this.snapshot.presence = { value: "present", reason: "stableFace", faceMissingSince: null, awayDetectedAt: null };
-      this.beginSession((id === "hardReminder" ? 60 : id === "working" ? 29 : 30) * MINUTE);
+      this.beginSession((id === "hardReminder" ? 60 : id === "advanceNotice" ? 27 : id === "working" ? 29 : 30) * MINUTE);
     }
     if (id === "reminder" || id === "hardReminder") this.showReminder(id === "hardReminder" ? "hardLimit" : "boundary");
     if (id === "snoozed") { this.nextPromptAt = this.now + 10 * MINUTE; this.nextPromptCause = "snoozeLimit"; this.boundaryEligibleAt = this.now + 2 * MINUTE; }

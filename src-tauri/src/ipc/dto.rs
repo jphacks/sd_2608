@@ -310,6 +310,10 @@ wire_struct!(Reminder {
     cause: ReminderCause,
     shown_at: SafeInt
 });
+wire_struct!(AdvanceNotice {
+    session_id: Id,
+    remaining_ms: SafeInt
+});
 wire_struct!(ActivitySegment {
     id: Id,
     session_id: Id,
@@ -335,6 +339,7 @@ wire_struct!(AppSnapshot {
     settings: SettingsView, presence: PresenceState,
     #[serde(deserialize_with = "required_nullable")] session: Option<SittingSession>,
     #[serde(deserialize_with = "required_nullable")] reminder: Option<Reminder>,
+    #[serde(deserialize_with = "required_nullable")] advance_notice: Option<AdvanceNotice>,
     jobs: Vec<ReportJobView>, completion_seq: SafeInt,
     #[serde(deserialize_with = "required_nullable")] warning: Option<ApiError>,
 });
@@ -362,6 +367,7 @@ impl AppSnapshot {
             },
             session: None,
             reminder: None,
+            advance_notice: None,
             jobs: vec![],
             completion_seq: SafeInt::ZERO,
             warning: None,

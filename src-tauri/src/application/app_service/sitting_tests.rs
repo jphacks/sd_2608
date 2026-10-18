@@ -100,6 +100,28 @@ impl Rig {
     }
 }
 #[test]
+fn demo_advance_notice_is_projected_separately_and_expires_before_yes_no() {
+    let mut rig = Rig::new();
+    rig.stable();
+    rig.run(26, true, 0);
+    assert!(snapshot(&rig.service).advance_notice.is_none());
+    rig.run(1, true, 0);
+    let view = snapshot(&rig.service);
+    let notice = view.advance_notice.unwrap();
+    assert_eq!(notice.remaining_ms.get(), 3_000);
+    assert_eq!(notice.session_id, view.session.unwrap().id);
+    assert!(view.reminder.is_none());
+    assert!(view.jobs.is_empty());
+    rig.run(3, true, 0);
+    assert!(snapshot(&rig.service).advance_notice.is_none());
+    assert!(snapshot(&rig.service).reminder.is_none());
+    rig.run(5, true, 0);
+    assert!(snapshot(&rig.service).reminder.is_some());
+    assert!(snapshot(&rig.service).advance_notice.is_none());
+    assert!(snapshot(&rig.service).jobs.is_empty());
+}
+
+#[test]
 fn live_samples_reach_a_demo_prompt_and_no_is_idempotent_without_a_report() {
     let mut rig = Rig::new();
     rig.stable();

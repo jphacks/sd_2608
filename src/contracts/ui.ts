@@ -18,6 +18,7 @@ export type AppViewModel = {
   pet: PetViewModel;
   motion: Motion;
   bubble: BubbleViewModel | null;
+  advanceNotice: { sessionId: Id; text: string } | null;
   report: ReportPanelState;
   reportList: ReportListItem[];
   reportListLoading: boolean;
@@ -44,6 +45,7 @@ export interface AppViewActions {
   refreshReports(): Promise<void>;
   clearData(): Promise<void>;
   dismissError(): void;
+  dismissAdvanceNotice(): void;
 }
 /** 表示担当の入口。この Props を維持すれば内部のコンポーネント構成は自由。 */
 export type AppViewProps = { state: AppViewModel; actions: AppViewActions; petManifest: PetManifest };

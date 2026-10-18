@@ -575,6 +575,7 @@ impl AppService {
             AppSnapshot::initial(state.snapshot.runtime_id.clone(), now).presence;
         state.snapshot.session = None;
         state.snapshot.reminder = None;
+        state.snapshot.advance_notice = None;
         state.snapshot.warning = state.persistence_warning.clone();
         if clear {
             state.snapshot.jobs.clear();

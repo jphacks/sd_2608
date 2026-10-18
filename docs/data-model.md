@@ -10,6 +10,8 @@ B-04 は FaceObservation に内部の sequence を追加した。Domain は独�
 
 表示用 Props と操作の確定した入口は `src/contracts/ui.ts`。`AppViewModel`、`AppViewActions`、`AppViewProps`、各画面の Props を追加した。使用方法は [表示開発ガイド](ui-development.md) を参照。
 
+休憩予告用に `AdvanceNotice { sessionId, remainingMs }` と `AppSnapshot.advanceNotice` を追加した。対象外の時間・在席状態では `null`。残り時間は初回30分（デモ30秒）の目安までの単調時計の期間で、秒単位に切り上げる。表示用の `AppViewModel.advanceNotice` は文言を持ち、`dismissAdvanceNotice` は同じ runtime・tracking・session の再表示を抑止する。閉じた状態は永続化せず、在席セッション・通知の回答状態・レポートジョブは変更しない。
+
 B-07では内部の`report_coordinator::Input`に秘密の保存IDを追加した。設定revision・同意・モード・履歴と一緒に固定し、平文キーは実行時だけ復号する。HTTP本文へはアプリ名・マスク済みタイトル・区間時刻・対象期間だけを渡す。共有DTOや保存JSONのスキーマは変更していない。[AIの固定入力・再試行](backend-ai-provider.md) を参照。
 
 ## 1. 共通ルール
@@ -90,6 +92,10 @@ export type ReminderPolicyState = {
   lastAnswer: "yes" | "no" | null;
   lastAnsweredAt: TimestampMs | null;
   hardNextAt: TimestampMs | null;
+};
+export type AdvanceNotice = {
+  sessionId: Id;
+  remainingMs: DurationMs;
 };
 ```
 
@@ -184,6 +190,7 @@ export type AppSnapshot = {
   presence: PresenceState;
   session: SittingSession | null;
   reminder: Reminder | null;
+  advanceNotice: AdvanceNotice | null;
   jobs: ReportJobView[];
   completionSeq: number;
   warning: ApiError | null;

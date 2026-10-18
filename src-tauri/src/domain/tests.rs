@@ -1,5 +1,48 @@
 use super::*;
 const MINUTE: u64 = 60_000;
+#[test]
+fn advance_notice_uses_monotonic_first_cycle_bounds_in_normal_and_demo() {
+    for timings in [Timings::NORMAL, Timings::DEMO] {
+        let mut h = Harness::new(timings);
+        h.stable();
+        let from = timings.first_ms - timings.advance_notice_lead_ms;
+        h.until(from - 1);
+        assert!(h.engine.advance_notice().is_none());
+        h.until(from);
+        let notice = h.engine.advance_notice().unwrap();
+        assert_eq!(notice.remaining_ms, timings.advance_notice_lead_ms);
+        assert_eq!(notice.session_id, h.engine.session.as_ref().unwrap().id);
+        assert!(h.engine.visible_reminder().is_none());
+        h.time.utc_ms = 0; // 壁時計の補正は予告の期限に使わない。
+        h.until(timings.first_ms - 1);
+        assert_eq!(h.engine.advance_notice().unwrap().remaining_ms, 1);
+        h.until(timings.first_ms);
+        assert!(h.engine.advance_notice().is_none());
+        h.until(timings.first_limit_ms);
+        assert!(h.engine.visible_reminder().is_some());
+        assert!(h.engine.advance_notice().is_none());
+        assert_eq!(h.reports(), 0);
+    }
+}
+
+#[test]
+fn advance_notice_hides_on_missing_face_stop_and_interrupted_continuity() {
+    let mut h = Harness::new(Timings::DEMO);
+    h.stable();
+    h.until(27_000);
+    assert!(h.engine.advance_notice().is_some());
+    h.step(1, false, 0);
+    assert!(h.engine.advance_notice().is_none());
+    h.step(1, true, 0);
+    assert!(h.engine.advance_notice().is_some());
+    h.step(6_000, true, 0); // 鮮度切れは旧セッションを中断する。
+    assert!(h.engine.advance_notice().is_none());
+    h.stable();
+    h.until(27_000);
+    assert!(h.engine.advance_notice().is_some());
+    h.engine.stop(h.time);
+    assert!(h.engine.advance_notice().is_none());
+}
 fn target(name: &str) -> Target {
     Target::External(WindowKey {
         process_id: 1,

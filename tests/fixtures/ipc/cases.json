@@ -41,7 +41,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -116,7 +117,8 @@
           }
         ],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -367,7 +369,8 @@
             }
           ],
           "completionSeq": 0,
-          "warning": null
+          "warning": null,
+          "advanceNotice": null
         },
         "reportId": "report-1"
       }
@@ -440,7 +443,8 @@
         "session": null,
         "reminder": null,
         "jobs": [],
-        "completionSeq": 0
+        "completionSeq": 0,
+        "advanceNotice": null
       }
     }
   },
@@ -532,7 +536,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -578,7 +583,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -624,7 +630,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -670,7 +677,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -717,7 +725,8 @@
         "jobs": [],
         "completionSeq": 0,
         "warning": null,
-        "extra": true
+        "extra": true,
+        "advanceNotice": null
       }
     }
   },
@@ -797,7 +806,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -843,7 +853,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -888,7 +899,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -963,7 +975,8 @@
           }
         ],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -1038,7 +1051,8 @@
           }
         ],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -1084,7 +1098,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       }
     }
   },
@@ -1139,7 +1154,8 @@
         "reminder": null,
         "jobs": [],
         "completionSeq": 0,
-        "warning": null
+        "warning": null,
+        "advanceNotice": null
       },
       "error": {
         "code": "invalidState",
@@ -1286,6 +1302,218 @@
       "kind": "unavailable",
       "reason": "deviceError",
       "faceDetected": false
+    }
+  },
+  {
+    "name": "advance notice snapshot",
+    "kind": "snapshot",
+    "valid": true,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "openAiCompatible",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": null,
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "running",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null,
+        "advanceNotice": {
+          "sessionId": "session-1",
+          "remainingMs": 180000
+        }
+      }
+    }
+  },
+  {
+    "name": "missing nullable advance notice",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "openAiCompatible",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": null,
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "running",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null
+      }
+    }
+  },
+  {
+    "name": "negative advance notice remaining time",
+    "kind": "snapshot",
+    "valid": false,
+    "value": {
+      "ok": true,
+      "data": {
+        "apiVersion": 1,
+        "runtimeId": "fixture-runtime",
+        "revision": 0,
+        "emittedAt": 1792195200000,
+        "runtime": {
+          "phase": "running",
+          "trackingId": "tracking-1",
+          "profile": "normal",
+          "effectiveReportMode": "ai",
+          "camera": "running",
+          "activity": "running",
+          "consent": {
+            "activity": true,
+            "history": true,
+            "externalReport": true
+          }
+        },
+        "settings": {
+          "reportMode": "ai",
+          "provider": {
+            "kind": "openAiCompatible",
+            "endpoint": "https://example.invalid/api",
+            "model": "fixture"
+          },
+          "excludedApps": [],
+          "reducedMotion": false,
+          "revision": 0,
+          "hasApiKey": true
+        },
+        "presence": {
+          "value": "present",
+          "reason": "stableFace",
+          "faceMissingSince": null,
+          "awayDetectedAt": null
+        },
+        "session": {
+          "id": "session-1",
+          "startedAt": 1792193400000,
+          "endedAt": null,
+          "endReason": null,
+          "elapsedMs": 1800000,
+          "reportJobId": "report-1"
+        },
+        "reminder": null,
+        "jobs": [
+          {
+            "id": "report-1",
+            "sessionId": "session-1",
+            "trigger": "yes",
+            "requestedAt": 1792195200000,
+            "dueAt": 1792195200000,
+            "status": "running",
+            "attempt": 1,
+            "completionSeq": null
+          }
+        ],
+        "completionSeq": 0,
+        "warning": null,
+        "advanceNotice": {
+          "sessionId": "session-1",
+          "remainingMs": -1
+        }
+      }
     }
   }
 ]
