@@ -43,7 +43,10 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
     && !state.bubble && !reportOpen && !generating && !scheduled;
   const arriving = entrance === "playing";
   const urgent = !!state.error || !!snapshot?.warning || !!state.bubble || reportOpen;
-  const hideBubble = dismissed || (arriving && !urgent);
+  const settingsWaking = panel === "settings" && ["sit_to_rest", "rest_to_sit"].includes(state.motion.id);
+  const hideBubble = dismissed || ((arriving || settingsWaking) && !urgent);
+  useEffect(() => { actions.setSettingsOpen(panel === "settings"); }, [actions, panel]);
+  useEffect(() => () => actions.setSettingsOpen(false), [actions]);
   useEffect(() => {
     if (entrance !== "leaving") return;
     const timer = setTimeout(() => setEntrance("done"), reduced ? 0 : 200);
@@ -82,11 +85,13 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
       if (clickTimer.current) clearTimeout(clickTimer.current); };
   }, [desktop]);
   const openPanel = (next: Panel) => {
+    actions.setSettingsOpen(next === "settings");
     if (next === "menu" && reportOpen) actions.closeReport();
     setDismissed(false); setPanel(next);
   };
   const closePanel = () => openPanel(running ? "quiet" : "home");
   const closeMessage = () => {
+    actions.setSettingsOpen(false);
     if (state.bubble && !busy && !state.bubble.disabled) void actions.answer("no");
     if (state.error) actions.dismissError();
     if (reportOpen) actions.closeReport();
