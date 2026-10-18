@@ -26,13 +26,15 @@ html[data-pochi-desktop],html[data-pochi-desktop] body,html[data-pochi-desktop] 
 .pochi-app .bub-header { display:flex; align-items:center; justify-content:space-between; min-height:42px; padding:6px 12px 4px; gap:12px; }
 .pochi-app .gear,.pochi-app .bubble-close { display:grid; place-items:center; width:30px; height:30px; flex:none; min-height:0; padding:0; border:0; border-radius:50%; background:var(--line); color:var(--ink); }
 .pochi-app .bubble-close { width:28px; height:28px; margin-left:auto; font-size:20px; line-height:1; background:var(--close-bg); }
+.pochi-app .bubble-back { display:flex; align-items:center; gap:4px; min-height:30px; padding:2px 8px; border:0; border-radius:12px; background:var(--cream); font-size:12px; }
+.pochi-app .bubble-back svg { flex:none; }
 .pochi-app .chip { position:absolute; right:0; bottom:-46px; width:170px; background:var(--card); border:0; border-radius:999px; padding:6px 12px; font-size:13px; box-shadow:0 2px 0 var(--line); white-space:nowrap; display:none; text-align:center; font-variant-numeric:tabular-nums; }
 .pochi-app .chip.on { display:block; }
 .pochi-app .timer-label { color:var(--sub); font-size:11px; margin-right:8px; }
 .pochi-app .bub { position:absolute; right:-4px; bottom:176px; width:340px; max-width:calc(100vw - 64px); background:var(--card); border-radius:26px; padding:0; box-shadow:0 3px 0 var(--line),0 10px 28px rgba(74,44,30,.18); transform-origin:bottom right; animation:pochi-pop .38s cubic-bezier(.34,1.56,.64,1); }
 .pochi-app .bub.wide { width:380px; }
 .pochi-app .bub[hidden] { display:none; }
-.pochi-app .bub[data-state=closing] { animation:pochi-hide .22s ease-in forwards; }
+.pochi-app .bub[data-state=closing] { animation:pochi-hide .14s ease-in forwards; }
 .pochi-app .bub[data-state=closing],.pochi-app .bub[data-state=closing] * { pointer-events:none!important; }
 .pochi-app .bub::after { content:""; position:absolute; right:62px; bottom:-12px; width:22px; height:22px; background:var(--card); transform:rotate(45deg); border-radius:4px; box-shadow:3px 3px 0 var(--line); z-index:-1; }
 .pochi-app .bub-body { padding:2px 18px 16px; max-height:min(60vh,calc(100dvh - var(--dock-bottom) - 238px)); overflow:auto; scrollbar-width:thin; border-radius:0 0 26px 26px; overflow-wrap:anywhere; }

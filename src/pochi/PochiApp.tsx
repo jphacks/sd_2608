@@ -84,6 +84,20 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
     setPanel(running ? "quiet" : "home");
     setDismissed(true);
   };
+  const outsideClick = useRef(() => {});
+  useEffect(() => { outsideClick.current = () => { if (!dismissed) closeMessage(); }; });
+  useEffect(() => {
+    const pointer = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest("[data-pochi-hit]")) outsideClick.current();
+    };
+    const outside = () => outsideClick.current();
+    window.addEventListener("pointerdown", pointer, true);
+    window.addEventListener("pochi:outside-pointerdown", outside);
+    return () => {
+      window.removeEventListener("pointerdown", pointer, true);
+      window.removeEventListener("pochi:outside-pointerdown", outside);
+    };
+  }, []);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -116,6 +130,7 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
     <div className="pet">
       <AnimatedBubble open={!hideBubble} reduced={reduced} wide={panel === "settings"} label={panel === "settings" ? "ポチの設定" : "ポチのふきだし"}>
         <div className="bub-header">
+          {(panel === "settings" || panel === "history") && <button className="bubble-back" aria-label="メニューに戻る" onClick={() => openPanel("menu")}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg>戻る</button>}
           {panel === "menu" && <button className="gear" aria-label="設定" onClick={() => openPanel("settings")}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.4 1a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.5a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.5a7 7 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></svg></button>}
           <button className="bubble-close" aria-label={showAdvanceNotice ? "休憩の予告を閉じる" : "メッセージを閉じる"} onClick={closeMessage}>×</button>
         </div>
@@ -142,11 +157,10 @@ export default function PochiApp({ state, actions, desktop = false, profile = "n
           {desktop && <label className="check"><input type="checkbox" checked={pinned} onChange={event => {
             const value = event.target.checked; setPinned(value); void actions.pinWindow(value);
           }} />ほかのウィンドウより手前に表示</label>}
-          <div className="bs"><button onClick={reports}>作業記録を見る</button><button onClick={closePanel}>戻る</button></div>
+          <div className="bs"><button onClick={reports}>作業記録を見る</button></div>
           <details><summary>データ管理</summary><div className="bs"><button disabled={busy} onClick={() => { if (window.confirm("作業の記録を停止して、履歴とレポートをすべて削除しますか？")) void actions.clearData(); }}>履歴とレポートを削除</button></div></details>
         </> : panel === "history" ? <>
           <ReportHistory key={snapshot?.runtimeId} state={state} actions={actions} busy={busy || !running} onRetry={retry} />
-          <div className="bs"><button onClick={() => openPanel("menu")}>メニューへ</button></div>
         </> : panel === "menu" ? <>
           <p className="m">どうする？</p>
           <div className="menu-grid">

@@ -39,7 +39,9 @@ try {
   document.querySelector(".chip").click(); await paint();
   document.querySelector(".gear").click(); await paint();
   check(!preview() && document.querySelector(".settings-panel"), "設定パネルを優先し、予告で操作を遮らない");
-  [...document.querySelectorAll(".bub button")].find(button => button.textContent === "戻る").click(); await paint();
+  document.querySelector(".bubble-back").click(); await paint();
+  check(document.querySelector(".menu-grid") && !preview(), "設定左上の戻るボタンはメニューへ戻る");
+  window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await paint();
   check(!!preview(), "予告期間内ならパネルを閉じた後に表示");
   gateway.advanceBy(3_000); await paint();
   check(preview()?.textContent.includes("そろそろ休憩の時間"), "目安の時刻を過ぎても休憩予告を自動で消さない");

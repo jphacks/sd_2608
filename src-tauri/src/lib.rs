@@ -24,6 +24,18 @@ pub fn configure<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builde
                 )),
             )
             .map_err(|_| std::io::Error::other("保存基盤を初期化できません。"))?;
+        #[cfg(windows)]
+        {
+            let handle = app.handle().clone();
+            match infrastructure::windows::pointer::PointerObserver::start(move |point| {
+                let _ = handle.emit_to("main", "app://pointer-down", point);
+            }) {
+                Ok(observer) => {
+                    app.manage(observer);
+                }
+                Err(error) => eprintln!("{error}"),
+            }
+        }
         Ok(())
     })
 }
@@ -59,6 +71,14 @@ pub fn configure_with_service<R: tauri::Runtime>(
             }
         })
         .on_window_event(|window, event| {
+            #[cfg(windows)]
+            if window.label() == "main" && matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Some(observer) =
+                    window.try_state::<infrastructure::windows::pointer::PointerObserver>()
+                {
+                    observer.stop();
+                }
+            }
             if window.label() == "main"
                 && matches!(
                     event,

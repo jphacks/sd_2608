@@ -17,7 +17,7 @@ export function AnimatedBubble({ open, reduced, wide, label, children }: {
   useEffect(() => {
     if (phase !== "closing") return;
     // animationend が届かない場合にも操作不能な吹き出しを残さない。
-    const timer = setTimeout(() => setPhase("closed"), 240);
+    const timer = setTimeout(() => setPhase("closed"), 160);
     return () => clearTimeout(timer);
   }, [phase]);
   return <div className={`bub${(open ? wide : lastWide.current) ? " wide" : ""}`} data-state={phase}

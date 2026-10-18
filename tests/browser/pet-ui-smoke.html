@@ -37,6 +37,7 @@ try {
   const start = document.querySelector('[aria-label="作業の記録を開始"]');
   check(start && ![...start.querySelectorAll("button")].some(item => /もどる|戻る/.test(item.textContent)), "開始画面から戻るの選択肢を削除");
   close.click(); await paint();
+  check(getComputedStyle(bubble()).animationDuration === "0.14s", "閉じる縮小アニメーションを0.14秒に短縮");
   check(!bubble().hidden && bubble().dataset.state === "closing" && bubble().inert && !bubble().hasAttribute("data-pochi-hit"), "閉じる途中は操作を無効にしてDOMを保持");
   check(getComputedStyle(bubble()).animationName === "pochi-hide" && Number(getComputedStyle(bubble()).opacity) < 1 && document.querySelector('[aria-label="作業の記録を開始"]'), "直前の内容を残して縮小・フェードアウト");
   await finishClose();
@@ -51,8 +52,27 @@ try {
   check(quit.right > positions[3].left && quit.top >= positions[3].bottom && getComputedStyle(document.querySelector(".quit-app")).fontSize === "11px", "終了はメニュー右下の小さなテキストボタン");
   const quitStyle = getComputedStyle(document.querySelector(".quit-app"));
   check(quitStyle.paddingLeft === quitStyle.paddingRight && quitStyle.textAlign === "center", "終了ボタンは左右対称の余白と中央揃え");
+  document.querySelector(".bub-body").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); await paint();
+  check(!bubble().hidden && bubble().dataset.state === "open", "吹き出し内のクリックでは閉じない");
+  const pet = document.querySelector("#petbtn"); pet.setPointerCapture = () => {};
+  pet.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1 })); await paint();
+  check(!bubble().hidden && bubble().dataset.state === "open", "犬を押しても吹き出しを閉じない");
+  let externalClicks = 0;
+  const external = document.createElement("button"); external.textContent = "他の領域";
+  external.onclick = () => { externalClicks++; }; document.body.append(external);
+  external.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true })); external.click(); await finishClose();
+  check(bubble().hidden && externalClicks === 1, "外側のクリックで閉じ、クリック先の操作を妨げない");
+  external.remove(); await openMenu();
+  window.dispatchEvent(new Event("pochi:outside-pointerdown")); await finishClose();
+  check(bubble().hidden, "背後のアプリへのクリック通知でも吹き出しを閉じる");
+  await openMenu();
   document.querySelector(".gear").click(); await paint();
   check(!!document.querySelector(".settings-panel"), "メニューの歯車から設定が開く");
+  const back = document.querySelector(".bub-header .bubble-back");
+  check(back && back.getBoundingClientRect().left < document.querySelector(".bubble-close").getBoundingClientRect().left, "設定画面の左上に戻るボタンを表示");
+  back.click(); await paint();
+  check(document.querySelector(".menu-grid") && !document.querySelector(".settings-panel"), "設定の戻るボタンでメニューへ戻る");
+  document.querySelector(".gear").click(); await paint();
   document.querySelector(".bubble-close").click(); await finishClose();
   check(bubble().hidden, "設定も✕で閉じる");
   await controller.actions.start({ profile: "demo", expectedSettingsRevision: 0, reportMode: "local",
@@ -106,7 +126,8 @@ try {
   rows[0].querySelector("summary").click(); await paint();
   check(rows.every(row => !row.open), "履歴カードをもう一度押すと閉じる");
   check(!/監視|自然離席|Yes の選択| · (ready|failed|local)/.test(bubble().textContent), "レポートの専門用語と英語の状態名を自然な日本語にする");
-  button("メニューへ").click(); await paint();
+  check(document.querySelector(".bub-header .bubble-back") && !button("メニューへ"), "作業記録画面も戻るボタンを左上に統一");
+  document.querySelector(".bubble-back").click(); await paint();
   check(!document.querySelector(".report-panel") && controller.getState().report.phase === "closed", "履歴からメニューへ移るとレポートを閉じる");
   button("作業記録を見る").click(); await paint();
   await controller.actions.openLatestReport(); await paint();
